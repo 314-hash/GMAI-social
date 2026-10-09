@@ -1,5 +1,5 @@
 export function shortenAddress(address: string | null | undefined, chars: number = 4): string {
-  if (!address) return '';
+  if (!address || typeof address !== 'string') return '';
   if (address.length <= chars * 2 + 2) return address;
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
@@ -23,22 +23,34 @@ export function formatExactNumber(balance: number | string): string {
   return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-export function formatTimestamp(timestamp: number): string {
+export function formatTimestamp(timestamp: number | string | undefined | null): string {
   if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const num = Number(timestamp);
+  if (isNaN(num) || num <= 0) return '';
+  try {
+    const date = new Date(num);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
-export function formatFullDate(timestamp: number): string {
+export function formatFullDate(timestamp: number | string | undefined | null): string {
   if (!timestamp) return '';
-  const date = new Date(timestamp);
-  return date.toLocaleDateString([], {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const num = Number(timestamp);
+  if (isNaN(num) || num <= 0) return '';
+  try {
+    const date = new Date(num);
+    return date.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
 }
 
 export function getTierBadge(balance: number): { label: string; color: string; bg: string; icon: string } {

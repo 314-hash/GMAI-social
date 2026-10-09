@@ -51,7 +51,11 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isConnected = !!address;
   const isCorrectNetwork = chainId === SIDRA_CHAIN_CONFIG.chainId;
-  const isAuthenticated = !!(authSession && address && authSession.address.toLowerCase() === address.toLowerCase());
+  const isAuthenticated = Boolean(
+    authSession?.address &&
+    address &&
+    authSession.address.toLowerCase() === address.toLowerCase()
+  );
 
   // Balance refresh helper
   const refreshBalance = useCallback(async (force = false) => {
@@ -108,7 +112,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Check for saved session matching this address
       const stored = getStoredSession();
-      if (stored && stored.address.toLowerCase() === activeAddress.toLowerCase()) {
+      if (stored?.address && activeAddress && stored.address.toLowerCase() === activeAddress.toLowerCase()) {
         setAuthSession(stored);
       } else {
         setAuthSession(null);
@@ -225,7 +229,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newAddress = accounts[0];
         setAddress(newAddress);
         const stored = getStoredSession();
-        if (stored && stored.address.toLowerCase() === newAddress.toLowerCase()) {
+        if (stored?.address && newAddress && stored.address.toLowerCase() === newAddress.toLowerCase()) {
           setAuthSession(stored);
         } else {
           setAuthSession(null);
@@ -251,7 +255,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setChainId(parseInt(hex, 16));
         });
         const stored = getStoredSession();
-        if (stored && stored.address.toLowerCase() === activeAddress.toLowerCase()) {
+        if (stored?.address && activeAddress && stored.address.toLowerCase() === activeAddress.toLowerCase()) {
           setAuthSession(stored);
         }
       }

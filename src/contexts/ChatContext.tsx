@@ -15,7 +15,7 @@ import { sanitizeMessage } from '../utils/sanitize';
 
 interface ChatContextType {
   rooms: ChatRoom[];
-  activeRoom: ChatRoom | null;
+  activeRoom: ChatRoom;
   messages: ChatMessage[];
   unreadCounts: Record<string, number>;
   onlineUsers: UserPresence[];
@@ -117,7 +117,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Rate limiter ref to prevent spamming
   const lastMessageTimeRef = useRef<number>(0);
 
-  // Active room object
+  // Active room object fallback guaranteed
   const activeRoom = roomsMap.get(activeRoomId) || DEFAULT_ROOMS[0];
 
   // Token-gate evaluation for the active room
@@ -130,7 +130,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setActiveRoomId = useCallback((roomId: string) => {
     setActiveRoomIdState(roomId);
     setUnreadCounts(prev => ({ ...prev, [roomId]: 0 }));
-    // Re-verify balance on entry
     refreshBalance(true);
   }, [refreshBalance]);
 
@@ -154,6 +153,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessagesMap(new Map());
 
     const unsubscribe = subscribeToRoomMessages(activeRoomId, (msg: ChatMessage) => {
+      if (!msg || !msg.text) return;
+
       setMessagesMap(prev => {
         const next = new Map(prev);
         next.set(msg.id, msg);
@@ -161,7 +162,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       // Track unread if not currently viewing
-      if (msg.roomId !== activeRoomId) {
+      if (msg.roomId && msg.roomId !== activeRoomId) {
         setUnreadCounts(prev => ({
           ...prev,
           [msg.roomId]: (prev[msg.roomId] || 0) + 1,
@@ -175,6 +176,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Subscribe to presence
   useEffect(() => {
     const unsubscribe = subscribeToPresence((user: UserPresence) => {
+      if (!user || !user.address) return;
       setOnlineUsersMap(prev => {
         const next = new Map(prev);
         // Only keep users active in last 10 minutes
@@ -189,7 +191,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
-  // Post message handler with rate limit and validation
+  // Post message handler with optimistic update, rate limit, and validation
   const sendMessage = useCallback(
     async (text: string) => {
       if (!authSession || !address) {
@@ -215,13 +217,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       lastMessageTimeRef.current = now;
 
-      await sendRoomMessage(activeRoomId, {
+      // 1. Optimistic message creation
+      const optimisticId = `msg_${now}_${Math.random().toString(36).substr(2, 6)}`;
+      const optimisticMsg: ChatMessage = {
+        id: optimisticId,
         roomId: activeRoomId,
         senderAddress: address,
         senderUsername: authSession.username,
         text: sanitized,
         timestamp: now,
+        reactions: {},
+        isPinned: false,
+        isDeleted: false,
+      };
+
+      // Add to local state immediately
+      setMessagesMap(prev => {
+        const next = new Map(prev);
+        next.set(optimisticId, optimisticMsg);
+        return next;
       });
+
+      // 2. Broadcast to Gun graph
+      try {
+        await sendRoomMessage(activeRoomId, optimisticMsg);
+      } catch (err) {
+        console.warn('Gun message broadcast warning:', err);
+      }
     },
     [activeRoomId, authSession, address, isGatedLocked, activeRoom.minGmaiBalance]
   );
@@ -305,6 +327,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Block/unblock user
   const blockUser = useCallback((userAddress: string) => {
+    if (!userAddress) return;
     setBlockedUsers(prev => {
       const next = [...prev, userAddress.toLowerCase()];
       localStorage.setItem('gmai_blocked_users', JSON.stringify(next));
@@ -313,6 +336,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const unblockUser = useCallback((userAddress: string) => {
+    if (!userAddress) return;
     setBlockedUsers(prev => {
       const next = prev.filter(a => a !== userAddress.toLowerCase());
       localStorage.setItem('gmai_blocked_users', JSON.stringify(next));
@@ -320,10 +344,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Sorted messages (by timestamp) and filtering out blocked users
+  // Sorted messages (by timestamp) with safe defensive checks against undefined/null
   const messagesList = Array.from(messagesMap.values())
-    .filter(m => !blockedUsers.includes(m.senderAddress.toLowerCase()))
-    .sort((a, b) => a.timestamp - b.timestamp);
+    .filter(m => {
+      if (!m || !m.text) return false;
+      const sender = (m.senderAddress || '').toLowerCase();
+      return !blockedUsers.includes(sender);
+    })
+    .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
 
   const roomsList = Array.from(roomsMap.values());
   const onlineList = Array.from(onlineUsersMap.values());

@@ -4,7 +4,6 @@ import {
   Check, 
   Pin, 
   Trash2, 
-  ShieldAlert, 
   Smile, 
   MoreVertical,
   VolumeX,
@@ -39,15 +38,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const [showPicker, setShowPicker] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const isMyMessage = !!(
-    address && message.senderAddress.toLowerCase() === address.toLowerCase()
+  if (!message || !message.text) return null;
+
+  const senderAddr = message.senderAddress || '';
+  const isMyMessage = Boolean(
+    address && senderAddr && senderAddr.toLowerCase() === address.toLowerCase()
   );
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText(message.senderAddress);
-    setCopied(true);
-    onShowToast('Sender address copied!', 'info');
-    setTimeout(() => setCopied(false), 2000);
+  const copyAddress = async () => {
+    if (!senderAddr) return;
+    try {
+      await navigator.clipboard.writeText(senderAddr);
+      setCopied(true);
+      onShowToast('Sender address copied!', 'info');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      onShowToast('Could not access clipboard', 'error');
+    }
   };
 
   if (message.isDeleted) {
@@ -58,9 +65,14 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     );
   }
 
-  // Reactions calculations
-  const reactionsMap = message.reactions || {};
-  const reactionEntries = Object.entries(reactionsMap).filter(([_, users]) => users.length > 0);
+  // Reactions calculations safely guarding against Gun's internal `_` node
+  const reactionsMap = (typeof message.reactions === 'object' && message.reactions !== null)
+    ? message.reactions
+    : {};
+
+  const reactionEntries = Object.entries(reactionsMap).filter(
+    ([key, users]) => key !== '_' && Array.isArray(users) && users.length > 0
+  );
 
   return (
     <div
@@ -89,17 +101,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <div className="flex items-center justify-between gap-2 mb-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-xs font-semibold ${isMyMessage ? 'text-cyan-300' : 'text-purple-300'}`}>
-              @{message.senderUsername}
+              @{message.senderUsername || 'Anonymous'}
             </span>
 
             {/* Address Pill */}
-            {message.senderAddress && (
+            {senderAddr && (
               <button
+                type="button"
                 onClick={copyAddress}
                 className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 border border-slate-800 transition-colors"
                 title="Click to copy full address"
               >
-                <span>{shortenAddress(message.senderAddress)}</span>
+                <span>{shortenAddress(senderAddr)}</span>
                 {copied ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
               </button>
             )}
@@ -121,6 +134,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             {/* Reaction Trigger */}
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setShowPicker(!showPicker)}
                 className="p-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
                 title="Add Reaction"
@@ -137,6 +151,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   {AVAILABLE_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
+                      type="button"
                       onClick={() => {
                         onReact(message.id, emoji);
                         setShowPicker(false);
@@ -154,6 +169,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             {(isRoomCreator || (!isMyMessage && address)) && (
               <div className="relative">
                 <button
+                  type="button"
                   onClick={() => setShowMenu(!showMenu)}
                   className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                 >
@@ -168,8 +184,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     {isRoomCreator && (
                       <>
                         <button
+                          type="button"
                           onClick={() => {
-                            onPin(message.id, !!message.isPinned);
+                            onPin(message.id, Boolean(message.isPinned));
                             setShowMenu(false);
                           }}
                           className="w-full text-left px-3 py-1.5 flex items-center gap-2 text-slate-300 hover:text-amber-400 hover:bg-slate-800/80"
@@ -178,6 +195,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                           <span>{message.isPinned ? 'Unpin' : 'Pin Message'}</span>
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             onDelete(message.id);
                             setShowMenu(false);
@@ -190,10 +208,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                       </>
                     )}
 
-                    {!isMyMessage && (
+                    {!isMyMessage && senderAddr && (
                       <button
+                        type="button"
                         onClick={() => {
-                          onBlockUser(message.senderAddress);
+                          onBlockUser(senderAddr);
                           setShowMenu(false);
                           onShowToast(`Blocked user @${message.senderUsername}`, 'info');
                         }}
@@ -219,13 +238,16 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         {reactionEntries.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mt-2">
             {reactionEntries.map(([emoji, userAddresses]) => {
-              const hasReacted = !!(
-                address && userAddresses.some(a => a.toLowerCase() === address.toLowerCase())
+              const userList = Array.isArray(userAddresses) ? userAddresses : [];
+              const hasReacted = Boolean(
+                address &&
+                userList.some(a => typeof a === 'string' && a.toLowerCase() === address.toLowerCase())
               );
 
               return (
                 <button
                   key={emoji}
+                  type="button"
                   onClick={() => onReact(message.id, emoji)}
                   className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs transition-all ${
                     hasReacted
@@ -234,7 +256,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   }`}
                 >
                   <span>{emoji}</span>
-                  <span className="text-[10px] font-mono">{userAddresses.length}</span>
+                  <span className="text-[10px] font-mono">{userList.length}</span>
                 </button>
               );
             })}

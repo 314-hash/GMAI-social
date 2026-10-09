@@ -5,16 +5,12 @@ import {
   Info,
   Pin,
   ChevronDown,
-  Sparkles,
-  ShieldAlert,
   Gamepad2,
-  Users,
 } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 import { useWallet } from '../contexts/WalletContext';
 import { MessageItem } from './MessageItem';
 import { MessageInput } from './MessageInput';
-import { GMAI_TOKEN_CONFIG } from '../config/blockchain';
 import { formatGmaiBalance } from '../utils/formatters';
 
 interface ChatAreaProps {
@@ -38,28 +34,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     pinMessage,
     blockUser,
     isGatedLocked,
-    activeRoomMinBalance,
-    onlineUsers,
   } = useChat();
 
-  const { address, balanceInfo } = useWallet();
+  const { address } = useWallet();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
-  const isRoomCreator = !!(
+  const isRoomCreator = Boolean(
     address &&
-    activeRoom &&
+    activeRoom?.creatorAddress &&
     activeRoom.creatorAddress.toLowerCase() === address.toLowerCase()
   );
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (!showScrollBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      try {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      } catch {}
     }
-  }, [messages.length, showScrollBottom]);
+  }, [messages?.length, showScrollBottom]);
 
   // Handle scroll detection
   const handleScroll = () => {
@@ -70,11 +66,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setShowScrollBottom(false);
+    try {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollBottom(false);
+    } catch {}
   };
 
-  const pinnedMessages = messages.filter(m => m.isPinned && !m.isDeleted);
+  const safeMessages = Array.isArray(messages) ? messages : [];
+  const pinnedMessages = safeMessages.filter(m => m && m.isPinned && !m.isDeleted);
 
   return (
     <main className="flex-1 flex flex-col h-full min-w-0 bg-gmai-dark relative">
@@ -121,6 +120,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           )}
 
           <button
+            type="button"
             onClick={onToggleDetails}
             className={`p-2 rounded-xl border transition-all ${
               isDetailsOpen
@@ -141,11 +141,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             <Pin className="w-3.5 h-3.5 shrink-0 text-amber-400" />
             <span className="font-semibold shrink-0">Pinned Announcement:</span>
             <span className="truncate text-slate-200">
-              {pinnedMessages[pinnedMessages.length - 1].text}
+              {pinnedMessages[pinnedMessages.length - 1]?.text || ''}
             </span>
           </div>
           <span className="text-[10px] text-amber-400/80 font-mono shrink-0 ml-2">
-            by @{pinnedMessages[pinnedMessages.length - 1].senderUsername}
+            by @{pinnedMessages[pinnedMessages.length - 1]?.senderUsername || 'Member'}
           </span>
         </div>
       )}
@@ -179,16 +179,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
 
         {/* Messages List */}
-        {messages.length === 0 ? (
+        {safeMessages.length === 0 ? (
           <div className="text-center py-12 space-y-2 text-slate-500">
             <Gamepad2 className="w-8 h-8 mx-auto text-slate-600" />
-            <p className="text-xs">No transmissions yet in #{activeRoom?.slug}.</p>
+            <p className="text-xs">No transmissions yet in #{activeRoom?.slug || 'chat'}.</p>
             <p className="text-[11px] text-slate-600">
               Transmit the first real-time message to initialize the node!
             </p>
           </div>
         ) : (
-          messages.map(message => (
+          safeMessages.map(message => (
             <MessageItem
               key={message.id}
               message={message}
@@ -208,6 +208,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {/* Floating Scroll To Bottom Button */}
       {showScrollBottom && (
         <button
+          type="button"
           onClick={scrollToBottom}
           className="absolute bottom-20 right-6 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500 text-slate-950 font-bold text-xs shadow-lg hover:bg-cyan-400 transition-all animate-bounce"
         >

@@ -9,6 +9,7 @@ import { CreateRoomModal } from './components/CreateRoomModal';
 import { AuthModal } from './components/AuthModal';
 import { DiscoverRoomsModal } from './components/DiscoverRoomsModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const MainApp: React.FC = () => {
   const { setActiveRoomId } = useChat();
@@ -99,10 +100,12 @@ const MainApp: React.FC = () => {
 
 export default function App() {
   return (
-    <WalletProvider>
-      <ChatProvider>
-        <MainApp />
-      </ChatProvider>
-    </WalletProvider>
+    <ErrorBoundary>
+      <WalletProvider>
+        <ChatProvider>
+          <MainApp />
+        </ChatProvider>
+      </WalletProvider>
+    </ErrorBoundary>
   );
 }

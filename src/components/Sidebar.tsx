@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     // Tab filter
     if (activeTab === 'my') {
-      if (!address || room.creatorAddress.toLowerCase() !== address.toLowerCase()) {
+      if (!address || !room.creatorAddress || room.creatorAddress.toLowerCase() !== address.toLowerCase()) {
         return false;
       }
     } else if (activeTab === 'gated') {

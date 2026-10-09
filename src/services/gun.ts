@@ -7,9 +7,9 @@ let gunInstance: any = null;
 export function getGun(): any {
   if (gunInstance) return gunInstance;
 
-  // Use window.Gun if loaded via CDN / script tag, or require/import
-  const GunConstructor = (typeof window !== 'undefined' && (window as any).Gun) 
-    ? (window as any).Gun 
+  // Use window.Gun if loaded via CDN / script tag
+  const GunConstructor = (typeof window !== 'undefined' && (window as any).Gun)
+    ? (window as any).Gun
     : null;
 
   if (GunConstructor) {
@@ -26,8 +26,7 @@ export function getGun(): any {
     }
   }
 
-  // In-memory / storage fallback mock if Gun is unavailable
-  console.warn('Gun.js library not detected on window, initializing resilient in-memory Gun relay mock');
+  console.warn('Gun.js library initializing resilient in-memory & local Gun relay mock');
   gunInstance = createLocalGunFallback();
   return gunInstance;
 }
@@ -36,36 +35,44 @@ export function getGun(): any {
  * Robust in-memory & localStorage fallback emulator if Gun network is restricted
  */
 function createLocalGunFallback() {
-  const listeners: Record<string, Function[]> = {};
+  const nodeListeners: Record<string, Function[]> = {};
 
   return {
     get(nodeName: string) {
       return {
         get(childName: string) {
-          const key = `${nodeName}/${childName}`;
+          const itemKey = `${nodeName}/${childName}`;
           return {
             put(data: any, cb?: Function) {
               try {
-                localStorage.setItem(`gun_${key}`, JSON.stringify(data));
-                if (listeners[key]) {
-                  listeners[key].forEach(fn => fn(data, childName));
+                localStorage.setItem(`gun_${itemKey}`, JSON.stringify(data));
+                
+                // Notify child listeners
+                if (nodeListeners[itemKey]) {
+                  nodeListeners[itemKey].forEach(fn => fn(data, childName));
                 }
+
+                // Notify parent map listeners
+                if (nodeListeners[nodeName]) {
+                  nodeListeners[nodeName].forEach(fn => fn(data, childName));
+                }
+
                 if (cb) cb({ ok: 1 });
               } catch (e) {
                 if (cb) cb({ err: e });
               }
             },
             on(cb: Function) {
-              if (!listeners[key]) listeners[key] = [];
-              listeners[key].push(cb);
+              if (!nodeListeners[itemKey]) nodeListeners[itemKey] = [];
+              nodeListeners[itemKey].push(cb);
               try {
-                const existing = localStorage.getItem(`gun_${key}`);
+                const existing = localStorage.getItem(`gun_${itemKey}`);
                 if (existing) cb(JSON.parse(existing), childName);
               } catch {}
             },
             once(cb: Function) {
               try {
-                const existing = localStorage.getItem(`gun_${key}`);
+                const existing = localStorage.getItem(`gun_${itemKey}`);
                 if (existing) cb(JSON.parse(existing));
                 else cb(null);
               } catch {
@@ -78,7 +85,7 @@ function createLocalGunFallback() {
           return {
             on(cb: Function) {
               const prefix = `gun_${nodeName}/`;
-              // Emit existing
+              // Emit existing keys
               for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
                 if (k && k.startsWith(prefix)) {
@@ -88,8 +95,8 @@ function createLocalGunFallback() {
                   } catch {}
                 }
               }
-              if (!listeners[nodeName]) listeners[nodeName] = [];
-              listeners[nodeName].push(cb);
+              if (!nodeListeners[nodeName]) nodeListeners[nodeName] = [];
+              nodeListeners[nodeName].push(cb);
             },
             once(cb: Function) {
               const prefix = `gun_${nodeName}/`;
@@ -108,11 +115,11 @@ function createLocalGunFallback() {
         },
         set(data: any, cb?: Function) {
           const id = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-          const key = `${nodeName}/${id}`;
+          const itemKey = `${nodeName}/${id}`;
           try {
-            localStorage.setItem(`gun_${key}`, JSON.stringify(data));
-            if (listeners[nodeName]) {
-              listeners[nodeName].forEach(fn => fn(data, id));
+            localStorage.setItem(`gun_${itemKey}`, JSON.stringify(data));
+            if (nodeListeners[nodeName]) {
+              nodeListeners[nodeName].forEach(fn => fn(data, id));
             }
             if (cb) cb({ ok: 1 });
           } catch (e) {
@@ -134,29 +141,43 @@ export const PRESENCE_NODE = 'gmai_presence';
 export async function sendRoomMessage(roomId: string, message: Omit<ChatMessage, 'id'>): Promise<string> {
   const gun = getGun();
   const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 7)}`;
-  const fullMessage: ChatMessage = {
-    ...message,
+  
+  // Format payload with flat primitive values for Gun graph stability
+  const payload = {
     id: messageId,
-    reactions: {},
-    isPinned: false,
-    isDeleted: false,
+    roomId,
+    senderAddress: message.senderAddress || '',
+    senderUsername: message.senderUsername || 'Anonymous',
+    text: message.text || '',
+    timestamp: Number(message.timestamp) || Date.now(),
+    reactions: typeof message.reactions === 'string' ? message.reactions : JSON.stringify(message.reactions || {}),
+    isPinned: Boolean(message.isPinned),
+    isDeleted: Boolean(message.isDeleted),
   };
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const safeResolve = () => {
+      if (!resolved) {
+        resolved = true;
+        resolve(messageId);
+      }
+    };
+
     try {
       const roomNode = gun.get(`gmai_room_messages_${roomId}`);
-      roomNode.get(messageId).put(fullMessage, (ack: any) => {
+      roomNode.get(messageId).put(payload, (ack: any) => {
         if (ack && ack.err) {
-          console.error('Gun error saving message:', ack.err);
-          // Still resolve for graceful offline/local experience
-          resolve(messageId);
-        } else {
-          resolve(messageId);
+          console.warn('Gun put warning:', ack.err);
         }
+        safeResolve();
       });
+
+      // Safety timeout so slow or offline peers never block chat execution
+      setTimeout(safeResolve, 800);
     } catch (e) {
       console.error('Failed to post message to Gun graph:', e);
-      reject(e);
+      safeResolve();
     }
   });
 }
@@ -175,25 +196,36 @@ export function subscribeToRoomMessages(
 
   try {
     roomNode.map().on((data: any, key: string) => {
-      if (!active || !data) return;
-      if (typeof data === 'object' && data.text && data.senderUsername && data.timestamp) {
-        // Clean reactions if stringified
-        let reactions = data.reactions;
-        if (typeof reactions === 'string') {
-          try { reactions = JSON.parse(reactions); } catch { reactions = {}; }
+      if (!active || !data || typeof data !== 'object') return;
+      if (key === '_') return; // Ignore Gun graph metadata node
+
+      if (data.text && data.timestamp) {
+        // Parse reactions safely
+        let reactions: Record<string, string[]> = {};
+        if (typeof data.reactions === 'string') {
+          try {
+            const parsed = JSON.parse(data.reactions);
+            if (parsed && typeof parsed === 'object') {
+              reactions = parsed;
+            }
+          } catch {}
+        } else if (data.reactions && typeof data.reactions === 'object') {
+          reactions = { ...data.reactions };
+          delete (reactions as any)._;
         }
 
         const msg: ChatMessage = {
-          id: key || data.id,
+          id: key || data.id || `msg_${Date.now()}`,
           roomId,
-          senderAddress: data.senderAddress || '',
-          senderUsername: data.senderUsername || 'Anonymous',
-          text: data.text || '',
+          senderAddress: String(data.senderAddress || ''),
+          senderUsername: String(data.senderUsername || 'Anonymous'),
+          text: String(data.text || ''),
           timestamp: Number(data.timestamp) || Date.now(),
-          reactions: reactions || {},
-          isPinned: !!data.isPinned,
-          isDeleted: !!data.isDeleted,
+          reactions,
+          isPinned: Boolean(data.isPinned),
+          isDeleted: Boolean(data.isDeleted),
         };
+
         onMessage(msg);
       }
     });
@@ -228,17 +260,16 @@ export async function toggleMessageReaction(
       try { reactions = JSON.parse(data.reactions); } catch {}
     } else if (typeof data.reactions === 'object' && data.reactions !== null) {
       reactions = { ...data.reactions };
+      delete (reactions as any)._;
     }
 
-    const currentUsers = reactions[emoji] ? [...reactions[emoji]] : [];
-    const lowerAddress = userAddress.toLowerCase();
-    const index = currentUsers.findIndex(a => a.toLowerCase() === lowerAddress);
+    const currentUsers = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
+    const lowerAddress = (userAddress || '').toLowerCase();
+    const index = currentUsers.findIndex(a => typeof a === 'string' && a.toLowerCase() === lowerAddress);
 
     if (index >= 0) {
-      // Remove reaction
       currentUsers.splice(index, 1);
     } else {
-      // Add reaction
       currentUsers.push(lowerAddress);
     }
 
@@ -248,7 +279,7 @@ export async function toggleMessageReaction(
       reactions[emoji] = currentUsers;
     }
 
-    // Save back to Gun
+    // Save as JSON string to preserve arrays in Gun
     msgNode.get('reactions').put(JSON.stringify(reactions));
   });
 }
@@ -283,6 +314,7 @@ export async function registerChatRoom(room: ChatRoom): Promise<void> {
           resolve();
         }
       });
+      setTimeout(resolve, 800);
     } catch (e) {
       reject(e);
     }
@@ -298,18 +330,20 @@ export function subscribeToChatRooms(onRoom: (room: ChatRoom) => void): () => vo
 
   try {
     gun.get(ROOMS_NODE).map().on((data: any, key: string) => {
-      if (!active || !data) return;
-      if (typeof data === 'object' && data.name && data.slug) {
+      if (!active || !data || typeof data !== 'object') return;
+      if (key === '_') return;
+
+      if (data.name && data.slug) {
         const room: ChatRoom = {
           id: key || data.id,
           name: data.name,
           slug: data.slug,
           description: data.description || '',
           category: data.category || 'general',
-          isTokenGated: !!data.isTokenGated,
+          isTokenGated: Boolean(data.isTokenGated),
           minGmaiBalance: Number(data.minGmaiBalance) || 0,
-          creatorAddress: data.creatorAddress || '',
-          creatorUsername: data.creatorUsername || 'GameMind AI',
+          creatorAddress: String(data.creatorAddress || ''),
+          creatorUsername: String(data.creatorUsername || 'GameMind AI'),
           createdAt: Number(data.createdAt) || Date.now(),
           rules: data.rules || '',
           icon: data.icon || '',
@@ -331,6 +365,7 @@ export function subscribeToChatRooms(onRoom: (room: ChatRoom) => void): () => vo
  * Update user presence in Gun
  */
 export function broadcastPresence(presence: UserPresence): void {
+  if (!presence || !presence.address) return;
   const gun = getGun();
   try {
     gun.get(PRESENCE_NODE).get(presence.address.toLowerCase()).put(presence);
@@ -345,12 +380,14 @@ export function subscribeToPresence(onPresence: (presence: UserPresence) => void
   let active = true;
 
   try {
-    gun.get(PRESENCE_NODE).map().on((data: any) => {
-      if (!active || !data) return;
-      if (typeof data === 'object' && data.address && data.username) {
+    gun.get(PRESENCE_NODE).map().on((data: any, key: string) => {
+      if (!active || !data || typeof data !== 'object') return;
+      if (key === '_') return;
+
+      if (data.address && data.username) {
         onPresence({
-          address: data.address,
-          username: data.username,
+          address: String(data.address),
+          username: String(data.username),
           status: data.status || 'online',
           lastSeen: Number(data.lastSeen) || Date.now(),
         });
