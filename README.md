@@ -50,7 +50,8 @@ All blockchain parameters are centralized and configurable in [`src/config/block
 ## 🚀 Features
 
 ### 1. Web3 Wallet Connection & Network Switching
-* Seamlessly connects to MetaMask, OKX, Rabby, Coinbase, and standard EIP-1193 EVM wallets.
+* Seamlessly connects to **PinetSwap** (Sidra native wallet & DEX), **SafePal**, MetaMask, OKX, Rabby, Coinbase, and standard EIP-1193 EVM wallets.
+* Mobile-responsive wallet modal with deep-linking for mobile browsers, external explorer clipboard helpers, and direct in-app webview auto-detection.
 * Automatically prompts users to add or switch to **Sidra Chain (97453)** if connected to another network.
 * Supports clean session teardown and wallet disconnect.
 
@@ -58,15 +59,21 @@ All blockchain parameters are centralized and configurable in [`src/config/block
 * **Zero Gas & Zero Cost**: No transaction required to log in.
 * Domain-bound authentication challenge containing unique random nonces and timestamp prevents signature replay attacks.
 * Unique username registration associated with the verified wallet address.
+* Immediate, non-blocking default session (`@Player_xxxx`) upon connection with 1-tap handle customization.
 * Anti-impersonation protection preventing other wallets from claiming an existing user's handle.
 
-### 3. Token-Gated Room Creation (500,000 $GMAI Minimum)
+### 3. Mobile Fast-Switch Channels & Responsive Experience
+* **1-Touch Mobile Channel Bar**: Horizontal scrolling channel switcher on mobile (`#community-general`, `#ai-agents`, `#metaverse-gaming`, `#gmai-vip-lounge`, and holder rooms).
+* **Modal-Free Entry**: Instant access to the dashboard upon wallet connection without trapping overlays.
+* **Persistent Identity Strip**: Shows current chatting handle and wallet address above input with instant edit capability.
+
+### 4. Token-Gated Room Creation (500,000 $GMAI Minimum)
 * Real-time read of user's balance from the token contract (`balanceOf(address)` and `decimals()`).
 * Accounts strictly for the contract's actual 18 decimals; balances supplied by the client are never trusted.
 * Users with < 500,000 $GMAI receive an informative lock banner indicating their current balance and shortfall.
 * Users with >= 500,000 $GMAI unlock full room creation with custom slugs, categories, descriptions, rules, and privacy controls.
 
-### 4. Real-Time Chat & GUN.js Synchronization
+### 5. Real-Time Chat & GUN.js Synchronization
 * Instant message delivery across peer nodes without manual refreshes.
 * Emoji reaction bar (`👍`, `🚀`, `🎮`, `🔥`, `💎`, `❤️`) with interactive counters.
 * Unread message indicators for background rooms.
@@ -74,7 +81,7 @@ All blockchain parameters are centralized and configurable in [`src/config/block
 * Room creator moderation tools: pin key announcements, delete/hide messages.
 * Client-side mute/block list to filter abusive peers.
 
-### 5. Security & Anti-Spam
+### 6. Security & Anti-Spam
 * Message rate limiting with interactive cooldown timers.
 * Input sanitization escaping script tags and potential XSS vectors.
 * Message length capped at 500 characters.
@@ -117,16 +124,26 @@ Starts the Express relay server on port `8000` with Radisk persistence at `http:
 
 ## 🧪 Automated Testing
 
+### 1. Vitest Unit & Integration Suite
 Run the automated Vitest test suite to verify token gating, cryptographic signatures, and anti-spam sanitization:
 
 ```bash
 npm test
 ```
 
-### Test Coverage:
 * `tests/auth.test.ts`: Cryptographic challenge creation, wallet signature verification, username formatting, and anti-impersonation.
 * `tests/tokenGating.test.ts`: 500,000 $GMAI creation threshold, decimal parsing, and fail-closed room entry logic.
 * `tests/chatSecurity.test.ts`: XSS prevention, message length enforcement, and room slug validation.
+* `tests/walletProvider.test.ts`: SafePal, PinetSwap, and multi-wallet EIP-1193 detection and mobile in-app fallback.
+
+### 2. TesterArmy Agentic E2E Framework
+Run end-to-end responsive UI tests using [`tester-army/e2e`](https://github.com/tester-army/e2e):
+
+```bash
+npm run test:e2e
+```
+
+* `tests/mobile.e2e.ts`: Mobile viewport (390x844) responsive layout, header visibility, 1-touch channel switching bar, and modal-free message composition.
 
 ---
 
