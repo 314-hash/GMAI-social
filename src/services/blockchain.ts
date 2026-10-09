@@ -23,19 +23,142 @@ export function getSidraRpcProvider(): JsonRpcProvider {
   return new JsonRpcProvider(SIDRA_CHAIN_CONFIG.rpcUrl);
 }
 
+// Active provider singleton to preserve the connected wallet across calls
+let activeProvider: any = null;
+
+export function setActiveProvider(provider: any): void {
+  activeProvider = provider;
+}
+
+export function getActiveProvider(): any {
+  return activeProvider;
+}
+
+// Store discovered EIP-6963 providers
+const eip6963Providers = new Map<string, any>();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('eip6963:announceProvider', (event: any) => {
+    if (event?.detail?.info?.rdns && event?.detail?.provider) {
+      eip6963Providers.set(event.detail.info.rdns, event.detail.provider);
+      if (event.detail.info.name) {
+        eip6963Providers.set(event.detail.info.name.toLowerCase(), event.detail.provider);
+      }
+    }
+  });
+  try {
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  } catch {
+    // Ignore in non-standard environments
+  }
+}
+
+/**
+ * Detect EVM provider for specific wallet or general injected
+ */
+export function getWalletProvider(targetWallet?: string): any {
+  if (typeof window === 'undefined') return null;
+  const anyWin = window as any;
+
+  // 1. SafePal specific check
+  if (targetWallet === 'safepal') {
+    if (eip6963Providers.get('io.safepal')) return eip6963Providers.get('io.safepal');
+    if (eip6963Providers.get('io.safepal.wallet')) return eip6963Providers.get('io.safepal.wallet');
+    if (eip6963Providers.get('safepal')) return eip6963Providers.get('safepal');
+    if (anyWin.safepalProvider && typeof anyWin.safepalProvider.request === 'function') {
+      return anyWin.safepalProvider;
+    }
+    if (anyWin.ethereum?.isSafePal && typeof anyWin.ethereum.request === 'function') {
+      return anyWin.ethereum;
+    }
+    if (Array.isArray(anyWin.ethereum?.providers)) {
+      const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
+      if (sp) return sp;
+    }
+    if (anyWin.safePal && typeof anyWin.safePal.request === 'function') {
+      return anyWin.safePal;
+    }
+  }
+
+  // 2. MetaMask specific check
+  if (targetWallet === 'metamask') {
+    if (eip6963Providers.get('io.metamask')) return eip6963Providers.get('io.metamask');
+    if (Array.isArray(anyWin.ethereum?.providers)) {
+      const mm = anyWin.ethereum.providers.find((p: any) => p.isMetaMask && !p.isSafePal && !p.isOkxWallet);
+      if (mm) return mm;
+    }
+    if (anyWin.ethereum?.isMetaMask && !anyWin.ethereum?.isSafePal && !anyWin.ethereum?.isOkxWallet) {
+      return anyWin.ethereum;
+    }
+  }
+
+  // 3. OKX specific check
+  if (targetWallet === 'okx') {
+    if (anyWin.okxwallet && typeof anyWin.okxwallet.request === 'function') return anyWin.okxwallet;
+    if (Array.isArray(anyWin.ethereum?.providers)) {
+      const okx = anyWin.ethereum.providers.find((p: any) => p.isOkxWallet);
+      if (okx) return okx;
+    }
+    if (anyWin.ethereum?.isOkxWallet) return anyWin.ethereum;
+  }
+
+  // Fallback to active or general injected
+  return activeProvider || getInjectedProvider();
+}
+
 /**
  * Detect injected EVM provider (SafePal, MetaMask, OKX, Rabby, Trust, etc.)
+ * Strictly validates that provider has an executable request method.
  */
 export function getInjectedProvider(): any {
   if (typeof window === 'undefined') return null;
   const anyWin = window as any;
-  return anyWin.safePal || anyWin.safepalProvider || anyWin.ethereum || null;
+
+  // Prioritize activeProvider if set
+  if (activeProvider && typeof activeProvider.request === 'function') {
+    return activeProvider;
+  }
+
+  // SafePal direct provider (SafePal mobile app in-app browser or extension)
+  if (anyWin.safepalProvider && typeof anyWin.safepalProvider.request === 'function') {
+    return anyWin.safepalProvider;
+  }
+
+  // SafePal or multi-provider in window.ethereum.providers
+  if (Array.isArray(anyWin.ethereum?.providers)) {
+    const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
+    if (sp) return sp;
+    const anyValid = anyWin.ethereum.providers.find((p: any) => typeof p.request === 'function');
+    if (anyValid) return anyValid;
+  }
+
+  // window.ethereum with valid request method
+  if (anyWin.ethereum && typeof anyWin.ethereum.request === 'function') {
+    return anyWin.ethereum;
+  }
+
+  // window.safePal with valid request method
+  if (anyWin.safePal && typeof anyWin.safePal.request === 'function') {
+    return anyWin.safePal;
+  }
+
+  // EIP-6963 provider
+  if (eip6963Providers.size > 0) {
+    const first = eip6963Providers.values().next().value;
+    if (first && typeof first.request === 'function') return first;
+  }
+
+  return anyWin.ethereum || null;
 }
 
 export function getBrowserProvider(): BrowserProvider | null {
-  const injected = getInjectedProvider();
-  if (injected) {
-    return new BrowserProvider(injected);
+  const injected = activeProvider || getInjectedProvider();
+  if (injected && (typeof injected.request === 'function' || typeof injected.send === 'function')) {
+    try {
+      return new BrowserProvider(injected);
+    } catch (err) {
+      console.warn('BrowserProvider instantiation error:', err);
+    }
   }
   return null;
 }
@@ -44,8 +167,8 @@ export function getBrowserProvider(): BrowserProvider | null {
  * Switch the user's wallet to Sidra Chain (Chain ID: 97453).
  * If the chain isn't added, calls wallet_addEthereumChain.
  */
-export async function switchToSidraChain(): Promise<boolean> {
-  const ethereum = getInjectedProvider();
+export async function switchToSidraChain(providerToUse?: any): Promise<boolean> {
+  const ethereum = providerToUse || activeProvider || getInjectedProvider();
   if (!ethereum) {
     throw new Error('No EVM wallet detected. Please install SafePal, MetaMask, or another EVM wallet.');
   }

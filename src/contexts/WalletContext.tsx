@@ -2,7 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { BrowserProvider } from 'ethers';
 import { SIDRA_CHAIN_CONFIG, GMAI_TOKEN_CONFIG } from '../config/blockchain';
 import { AuthSession, TokenBalanceInfo, ConnectionStatus } from '../types/wallet';
-import { switchToSidraChain, fetchGmaiBalance, getInjectedProvider } from '../services/blockchain';
+import {
+  switchToSidraChain,
+  fetchGmaiBalance,
+  getInjectedProvider,
+  getWalletProvider,
+  setActiveProvider,
+  getActiveProvider,
+} from '../services/blockchain';
 import {
   getStoredSession,
   clearSession,
@@ -21,7 +28,7 @@ interface WalletContextType {
   authSession: AuthSession | null;
   isAuthenticated: boolean;
   balanceInfo: TokenBalanceInfo;
-  connectWallet: () => Promise<void>;
+  connectWallet: (targetWallet?: string) => Promise<void>;
   disconnectWallet: () => void;
   switchNetwork: () => Promise<boolean>;
   authenticate: (username: string) => Promise<AuthSession>;
@@ -84,25 +91,45 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [address]);
 
   // Connect to wallet
-  const connectWallet = useCallback(async () => {
+  const connectWallet = useCallback(async (targetWallet?: string) => {
     setError(null);
     setStatus('connecting');
 
-    const ethereum = getInjectedProvider();
+    const ethereum = getWalletProvider(targetWallet);
     if (!ethereum) {
       setStatus('error');
-      setError('No EVM wallet detected. Please install SafePal, MetaMask, or OKX wallet.');
+      setError(targetWallet === 'safepal'
+        ? 'SafePal Wallet not detected. Please open inside the SafePal app or install the extension.'
+        : 'No EVM wallet detected. Please install SafePal, MetaMask, or OKX wallet.');
       return;
     }
 
     try {
-      const provider = new BrowserProvider(ethereum);
-      const accounts = await provider.send('eth_requestAccounts', []);
+      // Robust account request supporting SafePal, mobile in-app browsers, and EIP-1193
+      let accounts: string[] = [];
+      if (typeof ethereum.request === 'function') {
+        try {
+          accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        } catch (reqErr: any) {
+          if (reqErr.code === 4001) throw reqErr; // User rejected
+          const provider = new BrowserProvider(ethereum);
+          accounts = await provider.send('eth_requestAccounts', []);
+        }
+      } else if (typeof ethereum.enable === 'function') {
+        accounts = await ethereum.enable();
+      } else {
+        const provider = new BrowserProvider(ethereum);
+        accounts = await provider.send('eth_requestAccounts', []);
+      }
+
       if (!accounts || accounts.length === 0) {
         throw new Error('No accounts selected');
       }
 
       const activeAddress = accounts[0];
+      setActiveProvider(ethereum);
+
+      const provider = new BrowserProvider(ethereum);
       const network = await provider.getNetwork();
       const currentChainId = Number(network.chainId);
 
@@ -126,6 +153,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Disconnect wallet
   const disconnectWallet = useCallback(() => {
+    setActiveProvider(null);
     if (address && authSession) {
       broadcastPresence({
         address,
