@@ -64,8 +64,8 @@ export const DiscoverRoomsModal: React.FC<DiscoverRoomsModalProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="w-full max-w-3xl rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex flex-col max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-3xl rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_60px_rgba(0,0,0,0.85)] flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-cyan-500/15 flex items-center justify-between">
           <div>
@@ -133,7 +133,7 @@ export const DiscoverRoomsModal: React.FC<DiscoverRoomsModalProps> = ({
           </div>
 
           {/* Categories Horizontal Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
             {['all', 'gaming', 'ai-agents', 'metaverse', 'guilds', 'trading', 'development', 'general'].map(cat => (
               <button
                 key={cat}
@@ -151,7 +151,7 @@ export const DiscoverRoomsModal: React.FC<DiscoverRoomsModalProps> = ({
         </div>
 
         {/* Rooms Grid */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
           {filteredRooms.length === 0 ? (
             <div className="text-center py-12 space-y-3">
               <p className="text-sm text-slate-400">No rooms match your search query.</p>

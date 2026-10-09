@@ -109,8 +109,8 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="w-full max-w-lg rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-lg rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-cyan-500/15 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -165,7 +165,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
 
         {/* Body / Form */}
         {!isEligibleToCreate ? (
-          <div className="p-6 text-center space-y-4">
+          <div className="p-5 sm:p-6 text-center space-y-4 flex-1 overflow-y-auto">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
               <Lock className="w-6 h-6" />
             </div>
@@ -195,7 +195,7 @@ export const CreateRoomModal: React.FC<CreateRoomModalProps> = ({
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 flex-1 overflow-y-auto overscroll-contain">
             {error && (
               <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />

@@ -127,8 +127,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="w-full max-w-md rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+      <div className="w-full max-w-md rounded-2xl bg-gmai-surface border border-cyan-500/30 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[92vh] overflow-hidden">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-cyan-500/15 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -154,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <div className="p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4 flex-1 overflow-y-auto overscroll-contain">
           {!isConnected ? (
             <div className="text-center py-6 space-y-4">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto">

@@ -129,8 +129,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
           </div>
 
-          {/* Quick Action Bar (Visible on hover) */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          {/* Quick Action Bar (Visible on touch & hover) */}
+          <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1">
             {/* Reaction Trigger */}
             <div className="relative">
               <button

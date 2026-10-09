@@ -14,6 +14,7 @@ import {
   Search,
   ExternalLink,
   ShieldAlert,
+  X,
 } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 import { useWallet } from '../contexts/WalletContext';
@@ -96,10 +97,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-72 sm:w-80 flex flex-col bg-gmai-surface border-r border-cyan-500/15 transition-transform duration-300 ease-in-out ${
+        className={`fixed lg:static top-0 bottom-0 left-0 z-40 w-72 sm:w-80 max-w-[85vw] flex flex-col bg-gmai-surface border-r border-cyan-500/15 transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
+        {/* Mobile Navigation Header */}
+        <div className="lg:hidden p-3 border-b border-cyan-500/15 flex items-center justify-between bg-slate-900/80">
+          <span className="font-gaming text-xs font-bold text-cyan-400 tracking-wider">
+            CHATROOM CHANNELS
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            aria-label="Close navigation"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
         {/* Banner Card */}
         <div className="p-3 border-b border-cyan-500/15">
           <div className="relative rounded-xl overflow-hidden border border-cyan-500/30 group">

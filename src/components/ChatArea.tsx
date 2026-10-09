@@ -200,21 +200,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         className="flex-1 overflow-y-auto overscroll-y-contain px-2 sm:px-4 py-4 space-y-2 relative"
       >
         {/* Welcome Hero inside Room */}
-        <div className="p-4 sm:p-6 mb-4 rounded-3xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-cyan-500/20 relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10">
+        <div className="p-3 sm:p-5 mb-3 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-cyan-500/20 relative overflow-hidden">
+          <div className="flex items-center gap-3 relative z-10">
             <img
               src="/assets/gmai-warrior.jpg"
               alt="Cyber Warrior"
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-cyan-400/40 shadow-[0_0_20px_rgba(0,240,255,0.3)] shrink-0"
+              className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl object-cover border border-cyan-400/40 shadow-[0_0_15px_rgba(0,240,255,0.3)] shrink-0"
             />
-            <div className="space-y-1 text-center sm:text-left">
-              <span className="font-gaming text-xs text-cyan-400 tracking-wider">
+            <div className="space-y-0.5 min-w-0">
+              <span className="font-gaming text-[10px] sm:text-xs text-cyan-400 tracking-wider block">
                 WELCOME TO #{activeRoom?.slug || 'chat'}
               </span>
-              <h2 className="text-base sm:text-lg font-bold text-white">
+              <h2 className="text-xs sm:text-base font-bold text-white truncate">
                 {activeRoom?.name}
               </h2>
-              <p className="text-xs text-slate-400 max-w-xl">
+              <p className="text-[11px] sm:text-xs text-slate-400 line-clamp-1 sm:line-clamp-none">
                 {activeRoom?.description}
               </p>
             </div>
