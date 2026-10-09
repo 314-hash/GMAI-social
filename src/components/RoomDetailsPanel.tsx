@@ -45,7 +45,16 @@ export const RoomDetailsPanel: React.FC<RoomDetailsPanelProps> = ({
   };
 
   return (
-    <aside className="w-80 shrink-0 border-l border-cyan-500/15 bg-gmai-surface/95 backdrop-blur-xl flex flex-col h-full overflow-y-auto">
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="lg:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+        />
+      )}
+
+      <aside className="fixed lg:static top-0 bottom-0 right-0 z-40 w-80 max-w-[85vw] shrink-0 border-l border-cyan-500/15 bg-gmai-surface/95 backdrop-blur-xl flex flex-col h-full overflow-y-auto shadow-2xl">
       {/* Header */}
       <div className="p-4 border-b border-cyan-500/15 flex items-center justify-between">
         <h3 className="font-gaming text-xs font-bold text-slate-200 tracking-wider">
@@ -203,5 +212,6 @@ export const RoomDetailsPanel: React.FC<RoomDetailsPanelProps> = ({
         </div>
       </div>
     </aside>
+    </>
   );
 };

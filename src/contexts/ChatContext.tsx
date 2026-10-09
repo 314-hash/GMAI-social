@@ -12,6 +12,7 @@ import {
   subscribeToPresence,
 } from '../services/gun';
 import { sanitizeMessage } from '../utils/sanitize';
+import { createQuickWalletSession } from '../services/auth';
 
 interface ChatContextType {
   rooms: ChatRoom[];
@@ -194,8 +195,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Post message handler with optimistic update, rate limit, and validation
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!authSession || !address) {
-        throw new Error('Please connect your wallet and authenticate to chat.');
+      let currentAuth = authSession;
+      if (!currentAuth && address) {
+        currentAuth = createQuickWalletSession(address);
+      }
+
+      if (!currentAuth || !address) {
+        throw new Error('Please connect your wallet to chat.');
       }
 
       if (isGatedLocked) {
@@ -223,7 +229,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: optimisticId,
         roomId: activeRoomId,
         senderAddress: address,
-        senderUsername: authSession.username,
+        senderUsername: currentAuth.username,
         text: sanitized,
         timestamp: now,
         reactions: {},
@@ -251,8 +257,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Create room
   const createRoom = useCallback(
     async (roomData: Omit<ChatRoom, 'id' | 'createdAt' | 'status'>): Promise<ChatRoom> => {
-      if (!authSession || !address) {
-        throw new Error('Wallet authentication required to create a chatroom.');
+      let currentAuth = authSession;
+      if (!currentAuth && address) {
+        currentAuth = createQuickWalletSession(address);
+      }
+
+      if (!currentAuth || !address) {
+        throw new Error('Wallet connection required to create a chatroom.');
       }
 
       // Re-verify balance

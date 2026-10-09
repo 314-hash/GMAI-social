@@ -186,7 +186,11 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <div className="flex items-center gap-1.5">
               {/* User Profile Pill */}
-              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-slate-900/90 border border-purple-500/30">
+              <div
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-slate-900/90 border border-purple-500/30 cursor-pointer hover:border-purple-400/60 hover:bg-slate-800/80 transition-all"
+                title="Click to customize username or verify identity"
+              >
                 <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-[10px] sm:text-[11px] font-bold text-white uppercase shadow-sm shrink-0">
                   {authSession?.username?.charAt(0) || 'U'}
                 </div>

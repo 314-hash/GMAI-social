@@ -34,7 +34,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (e) e.preventDefault();
     if (!text.trim() || isSending || cooldown > 0) return;
 
-    if (!isConnected || !isAuthenticated) {
+    if (!isConnected) {
       onOpenAuthModal();
       return;
     }
@@ -103,27 +103,28 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     );
   }
 
-  // Unauthenticated Banner State
-  if (!isConnected || !isAuthenticated) {
+  // Disconnected Banner State
+  if (!isConnected) {
     return (
       <div className="p-3 sm:p-4 bg-slate-900/90 border-t border-cyan-500/20 backdrop-blur-md">
         <div className="p-3 rounded-2xl bg-slate-900/80 border border-cyan-500/30 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-purple-400" />
+            <ShieldCheck className="w-5 h-5 text-cyan-400" />
             <div>
-              <p className="text-xs font-semibold text-purple-200">
-                Authenticate to join #{activeRoom?.slug || 'chat'}
+              <p className="text-xs font-semibold text-white">
+                Join Community Chat #{activeRoom?.slug || 'general'}
               </p>
               <p className="text-[11px] text-slate-400">
-                Connect your EVM wallet and verify identity to participate in real-time chat.
+                Connect your SafePal, MetaMask, or EVM wallet to participate in real-time chat.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onOpenAuthModal}
-            className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)]"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
           >
-            Connect & Verify
+            Connect Wallet
           </button>
         </div>
       </div>
