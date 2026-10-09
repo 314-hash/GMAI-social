@@ -23,9 +23,19 @@ export function getSidraRpcProvider(): JsonRpcProvider {
   return new JsonRpcProvider(SIDRA_CHAIN_CONFIG.rpcUrl);
 }
 
+/**
+ * Detect injected EVM provider (SafePal, MetaMask, OKX, Rabby, Trust, etc.)
+ */
+export function getInjectedProvider(): any {
+  if (typeof window === 'undefined') return null;
+  const anyWin = window as any;
+  return anyWin.safePal || anyWin.safepalProvider || anyWin.ethereum || null;
+}
+
 export function getBrowserProvider(): BrowserProvider | null {
-  if (typeof window !== 'undefined' && (window as any).ethereum) {
-    return new BrowserProvider((window as any).ethereum);
+  const injected = getInjectedProvider();
+  if (injected) {
+    return new BrowserProvider(injected);
   }
   return null;
 }
@@ -35,9 +45,9 @@ export function getBrowserProvider(): BrowserProvider | null {
  * If the chain isn't added, calls wallet_addEthereumChain.
  */
 export async function switchToSidraChain(): Promise<boolean> {
-  const ethereum = (window as any).ethereum;
+  const ethereum = getInjectedProvider();
   if (!ethereum) {
-    throw new Error('No EVM wallet detected. Please install MetaMask or another EVM wallet.');
+    throw new Error('No EVM wallet detected. Please install SafePal, MetaMask, or another EVM wallet.');
   }
 
   try {

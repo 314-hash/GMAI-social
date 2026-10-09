@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { BrowserProvider } from 'ethers';
 import { SIDRA_CHAIN_CONFIG, GMAI_TOKEN_CONFIG } from '../config/blockchain';
 import { AuthSession, TokenBalanceInfo, ConnectionStatus } from '../types/wallet';
-import { switchToSidraChain, fetchGmaiBalance } from '../services/blockchain';
+import { switchToSidraChain, fetchGmaiBalance, getInjectedProvider } from '../services/blockchain';
 import {
   getStoredSession,
   clearSession,
@@ -88,10 +88,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setError(null);
     setStatus('connecting');
 
-    const ethereum = (window as any).ethereum;
+    const ethereum = getInjectedProvider();
     if (!ethereum) {
       setStatus('error');
-      setError('No EVM wallet detected. Please install MetaMask, OKX, or Rabby wallet.');
+      setError('No EVM wallet detected. Please install SafePal, MetaMask, or OKX wallet.');
       return;
     }
 
@@ -156,7 +156,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setError(null);
       await switchToSidraChain();
-      const ethereum = (window as any).ethereum;
+      const ethereum = getInjectedProvider();
       if (ethereum) {
         const provider = new BrowserProvider(ethereum);
         const net = await provider.getNetwork();
@@ -175,7 +175,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw new Error('Wallet must be connected first.');
     }
 
-    const ethereum = (window as any).ethereum;
+    const ethereum = getInjectedProvider();
     if (!ethereum) {
       throw new Error('No EVM wallet provider available.');
     }
@@ -219,7 +219,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Listen to provider events (accountsChanged, chainChanged)
   useEffect(() => {
-    const ethereum = (window as any).ethereum;
+    const ethereum = getInjectedProvider();
     if (!ethereum) return;
 
     const handleAccountsChanged = (accounts: string[]) => {

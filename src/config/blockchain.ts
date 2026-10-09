@@ -40,15 +40,22 @@ export const GUN_PEERS = (() => {
   const peers: string[] = [];
   if (customRelay) {
     peers.push(customRelay);
-  } else if (typeof window !== 'undefined' && window.location.origin) {
-    // Attempt local gun endpoint if served together
+  } else if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ) {
+    // Attempt local gun endpoint if running locally with server.js
     peers.push(`${window.location.origin}/gun`);
   }
   
   if (publicPeers.length > 0) {
     peers.push(...publicPeers);
   } else {
-    peers.push('https://gun-manhattan.herokuapp.com/gun', 'https://gun-us.herokuapp.com/gun');
+    peers.push(
+      'https://gun-manhattan.herokuapp.com/gun',
+      'https://peer.wall.org/gun',
+      'https://relay.peer.ooo/gun'
+    );
   }
 
   return peers;

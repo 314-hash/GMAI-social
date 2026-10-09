@@ -7,10 +7,9 @@ import {
   Check,
   Smartphone,
   Shield,
-  Sparkles,
-  Info,
 } from 'lucide-react';
 import { useWallet } from '../contexts/WalletContext';
+import { getInjectedProvider } from '../services/blockchain';
 
 interface WalletConnectModalProps {
   isOpen: boolean;
@@ -28,10 +27,35 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
 
   if (!isOpen) return null;
 
-  const hasInjected = typeof window !== 'undefined' && !!(window as any).ethereum;
+  const injected = getInjectedProvider();
+  const hasInjected = !!injected;
   const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://gamemind.ai';
+  
+  // Canonical Vercel live URL
+  const publicVercelUrl = 'https://gamemindai-social.vercel.app';
+  const currentUrl = (typeof window !== 'undefined' && window.location.href && !window.location.href.includes('localhost') && !window.location.href.includes('127.0.0.1'))
+    ? window.location.href
+    : (import.meta.env.VITE_APP_URL || publicVercelUrl);
   const cleanUrl = currentUrl.replace(/^https?:\/\//, '');
+
+  // Determine detected wallet label
+  let detectedWalletName = 'Browser Wallet';
+  if (typeof window !== 'undefined') {
+    const anyWin = window as any;
+    if (anyWin.safePal || anyWin.safepalProvider || anyWin.ethereum?.isSafePal) {
+      detectedWalletName = 'SafePal Wallet';
+    } else if (anyWin.ethereum?.isMetaMask && !anyWin.ethereum?.isOkxWallet) {
+      detectedWalletName = 'MetaMask';
+    } else if (anyWin.ethereum?.isOkxWallet) {
+      detectedWalletName = 'OKX Wallet';
+    } else if (anyWin.ethereum?.isTrust) {
+      detectedWalletName = 'Trust Wallet';
+    } else if (anyWin.ethereum?.isCoinbaseWallet) {
+      detectedWalletName = 'Coinbase Wallet';
+    } else if (anyWin.ethereum?.isRabby) {
+      detectedWalletName = 'Rabby Wallet';
+    }
+  }
 
   const copyUrl = async () => {
     try {
@@ -54,6 +78,15 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   };
 
   const mobileWallets = [
+    {
+      name: 'SafePal Wallet',
+      badge: 'Hardware & Mobile',
+      color: 'from-indigo-600/20 to-purple-600/20 border-indigo-500/30 text-indigo-300',
+      icon: '🛡️',
+      deepLink: `safepalwallet://dapp/url?url=${encodeURIComponent(currentUrl)}`,
+      fallbackUniversalLink: `https://link.safepal.io/dapp?url=${encodeURIComponent(currentUrl)}`,
+      description: 'Open directly in SafePal DApp Browser',
+    },
     {
       name: 'MetaMask',
       badge: 'Popular',
@@ -87,6 +120,20 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       description: 'Connect via Coinbase Mobile',
     },
   ];
+
+  const handleWalletLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, wallet: typeof mobileWallets[0]) => {
+    if (wallet.name === 'SafePal Wallet') {
+      e.preventDefault();
+      // Try custom scheme first, fallback to universal link
+      const start = Date.now();
+      window.location.href = wallet.deepLink;
+      setTimeout(() => {
+        if (Date.now() - start < 1800 && wallet.fallbackUniversalLink) {
+          window.open(wallet.fallbackUniversalLink, '_blank');
+        }
+      }, 1200);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -131,14 +178,14 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
-                      Browser Wallet
+                      {detectedWalletName}
                     </span>
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       Detected
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Connect installed MetaMask, OKX, Rabby, or In-App Wallet
+                    Connect installed SafePal, MetaMask, OKX, or In-App Wallet
                   </p>
                 </div>
               </div>
@@ -163,7 +210,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           {/* Mobile Wallet Deep-link Cards */}
           <div className="space-y-2">
             <span className="text-[10px] font-mono uppercase text-slate-500 tracking-wider flex items-center justify-between">
-              <span>{isMobile ? 'ONE-TAP MOBILE CONNECT' : 'MOBILE WALLET APPS'}</span>
+              <span>{isMobile ? 'ONE-TAP MOBILE CONNECT' : 'SUPPORTED WALLETS'}</span>
               <span className="text-[9px] text-cyan-400">DEEP LINK</span>
             </span>
 
@@ -174,6 +221,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                   href={w.deepLink}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => handleWalletLinkClick(e, w)}
                   className={`flex items-center justify-between p-3 rounded-xl bg-slate-900/80 border hover:scale-[1.02] transition-all group ${w.color}`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -217,7 +265,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
               </button>
             </div>
             <p className="text-[10px] text-slate-500">
-              Paste this URL inside MetaMask, Bitget, or OKX in-app browser tab to chat and create rooms.
+              Paste this URL inside SafePal, MetaMask, OKX, or Trust Wallet in-app browser tab to chat and create rooms.
             </p>
           </div>
 
