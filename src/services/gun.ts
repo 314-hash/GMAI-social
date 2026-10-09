@@ -138,9 +138,12 @@ export const PRESENCE_NODE = 'gmai_presence';
 /**
  * Post a new message into a room's Gun node
  */
-export async function sendRoomMessage(roomId: string, message: Omit<ChatMessage, 'id'>): Promise<string> {
+export async function sendRoomMessage(
+  roomId: string,
+  message: ChatMessage | (Omit<ChatMessage, 'id'> & { id?: string })
+): Promise<string> {
   const gun = getGun();
-  const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 7)}`;
+  const messageId = message.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 7)}`;
   
   // Format payload with flat primitive values for Gun graph stability
   const payload = {

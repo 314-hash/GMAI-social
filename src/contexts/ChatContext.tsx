@@ -344,12 +344,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Sorted messages (by timestamp) with safe defensive checks against undefined/null
+  // Sorted messages (by timestamp) with safe defensive checks and duplicate prevention
+  const seenMessageKeys = new Set<string>();
   const messagesList = Array.from(messagesMap.values())
     .filter(m => {
       if (!m || !m.text) return false;
       const sender = (m.senderAddress || '').toLowerCase();
-      return !blockedUsers.includes(sender);
+      if (blockedUsers.includes(sender)) return false;
+
+      // Deduplicate: same sender + same text within a 3-second window
+      const timeBucket = Math.floor((Number(m.timestamp) || 0) / 3000);
+      const dedupeKey = `${sender}:${m.text.trim()}:${timeBucket}`;
+      if (seenMessageKeys.has(dedupeKey)) {
+        return false;
+      }
+      seenMessageKeys.add(dedupeKey);
+      return true;
     })
     .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
 
