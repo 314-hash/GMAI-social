@@ -41,15 +41,7 @@ const MainApp: React.FC = () => {
 
   const handleWalletConnected = () => {
     setIsWalletModalOpen(false);
-    if (address) {
-      const existing = getUsernameForAddress(address);
-      if (existing) {
-        showToast(`Welcome back @${existing}!`, 'success');
-        return;
-      }
-    }
-    // Seamlessly prompt username setup so mobile user can create handle & start chatting
-    setIsAuthModalOpen(true);
+    showToast('Wallet connected! You are now live in GameMind AI chat.', 'success');
   };
 
   return (
@@ -78,6 +70,7 @@ const MainApp: React.FC = () => {
           isDetailsOpen={isDetailsOpen}
           onOpenAuthModal={() => setIsAuthModalOpen(true)}
           onOpenWalletModal={() => setIsWalletModalOpen(true)}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onShowToast={showToast}
         />
 

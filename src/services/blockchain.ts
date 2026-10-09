@@ -54,6 +54,19 @@ if (typeof window !== 'undefined') {
 }
 
 /**
+ * Validates whether an object is a callable Web3 provider
+ */
+export function isCallableProvider(p: any): boolean {
+  return Boolean(
+    p && (
+      typeof p.request === 'function' ||
+      typeof p.enable === 'function' ||
+      typeof p.send === 'function'
+    )
+  );
+}
+
+/**
  * Detect EVM provider for specific wallet or general injected
  */
 export function getWalletProvider(targetWallet?: string): any {
@@ -65,18 +78,22 @@ export function getWalletProvider(targetWallet?: string): any {
     if (eip6963Providers.get('io.safepal')) return eip6963Providers.get('io.safepal');
     if (eip6963Providers.get('io.safepal.wallet')) return eip6963Providers.get('io.safepal.wallet');
     if (eip6963Providers.get('safepal')) return eip6963Providers.get('safepal');
-    if (anyWin.safepalProvider && typeof anyWin.safepalProvider.request === 'function') {
+    if (isCallableProvider(anyWin.safepalProvider)) {
       return anyWin.safepalProvider;
     }
-    if (anyWin.ethereum?.isSafePal && typeof anyWin.ethereum.request === 'function') {
+    if (anyWin.ethereum?.isSafePal && isCallableProvider(anyWin.ethereum)) {
       return anyWin.ethereum;
     }
     if (Array.isArray(anyWin.ethereum?.providers)) {
-      const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
+      const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && isCallableProvider(p));
       if (sp) return sp;
     }
-    if (anyWin.safePal && typeof anyWin.safePal.request === 'function') {
+    if (isCallableProvider(anyWin.safePal)) {
       return anyWin.safePal;
+    }
+    // Mobile in-app browser fallback (SafePal webview often provides window.ethereum)
+    if (isCallableProvider(anyWin.ethereum)) {
+      return anyWin.ethereum;
     }
   }
 
@@ -84,46 +101,46 @@ export function getWalletProvider(targetWallet?: string): any {
   if (targetWallet === 'metamask') {
     if (eip6963Providers.get('io.metamask')) return eip6963Providers.get('io.metamask');
     if (Array.isArray(anyWin.ethereum?.providers)) {
-      const mm = anyWin.ethereum.providers.find((p: any) => p.isMetaMask && !p.isSafePal && !p.isOkxWallet);
+      const mm = anyWin.ethereum.providers.find((p: any) => p.isMetaMask && !p.isSafePal && !p.isOkxWallet && isCallableProvider(p));
       if (mm) return mm;
     }
-    if (anyWin.ethereum?.isMetaMask && !anyWin.ethereum?.isSafePal && !anyWin.ethereum?.isOkxWallet) {
+    if (anyWin.ethereum?.isMetaMask && !anyWin.ethereum?.isSafePal && !anyWin.ethereum?.isOkxWallet && isCallableProvider(anyWin.ethereum)) {
       return anyWin.ethereum;
     }
   }
 
   // 3. OKX specific check
   if (targetWallet === 'okx') {
-    if (anyWin.okxwallet && typeof anyWin.okxwallet.request === 'function') return anyWin.okxwallet;
+    if (isCallableProvider(anyWin.okxwallet)) return anyWin.okxwallet;
     if (Array.isArray(anyWin.ethereum?.providers)) {
-      const okx = anyWin.ethereum.providers.find((p: any) => p.isOkxWallet);
+      const okx = anyWin.ethereum.providers.find((p: any) => p.isOkxWallet && isCallableProvider(p));
       if (okx) return okx;
     }
-    if (anyWin.ethereum?.isOkxWallet) return anyWin.ethereum;
+    if (anyWin.ethereum?.isOkxWallet && isCallableProvider(anyWin.ethereum)) return anyWin.ethereum;
   }
 
   // 4. PinetSwap specific check (Sidra Chain Native DEX & Wallet)
   if (targetWallet === 'pinetswap') {
     if (eip6963Providers.get('pinetswap')) return eip6963Providers.get('pinetswap');
     if (eip6963Providers.get('app.pinetswap')) return eip6963Providers.get('app.pinetswap');
-    if (anyWin.pinetswapProvider && typeof anyWin.pinetswapProvider.request === 'function') {
+    if (isCallableProvider(anyWin.pinetswapProvider)) {
       return anyWin.pinetswapProvider;
     }
-    if (anyWin.pinetswap && typeof anyWin.pinetswap.request === 'function') {
+    if (isCallableProvider(anyWin.pinetswap)) {
       return anyWin.pinetswap;
     }
-    if (anyWin.pinet && typeof anyWin.pinet.request === 'function') {
+    if (isCallableProvider(anyWin.pinet)) {
       return anyWin.pinet;
     }
-    if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && typeof anyWin.ethereum.request === 'function') {
+    if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && isCallableProvider(anyWin.ethereum)) {
       return anyWin.ethereum;
     }
     if (Array.isArray(anyWin.ethereum?.providers)) {
-      const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && typeof p.request === 'function');
+      const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && isCallableProvider(p));
       if (ps) return ps;
     }
     // If inside PinetSwap app or browser, or user selects PinetSwap with injected provider available
-    if (anyWin.ethereum && typeof anyWin.ethereum.request === 'function') {
+    if (isCallableProvider(anyWin.ethereum)) {
       return anyWin.ethereum;
     }
   }
@@ -134,63 +151,63 @@ export function getWalletProvider(targetWallet?: string): any {
 
 /**
  * Detect injected EVM provider (SafePal, PinetSwap, MetaMask, OKX, Rabby, Trust, etc.)
- * Strictly validates that provider has an executable request method.
+ * Strictly validates that provider is callable.
  */
 export function getInjectedProvider(): any {
   if (typeof window === 'undefined') return null;
   const anyWin = window as any;
 
   // Prioritize activeProvider if set
-  if (activeProvider && typeof activeProvider.request === 'function') {
+  if (isCallableProvider(activeProvider)) {
     return activeProvider;
   }
 
   // PinetSwap direct provider (Sidra Chain native)
-  if (anyWin.pinetswapProvider && typeof anyWin.pinetswapProvider.request === 'function') {
+  if (isCallableProvider(anyWin.pinetswapProvider)) {
     return anyWin.pinetswapProvider;
   }
-  if (anyWin.pinetswap && typeof anyWin.pinetswap.request === 'function') {
+  if (isCallableProvider(anyWin.pinetswap)) {
     return anyWin.pinetswap;
   }
-  if (anyWin.pinet && typeof anyWin.pinet.request === 'function') {
+  if (isCallableProvider(anyWin.pinet)) {
     return anyWin.pinet;
   }
-  if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && typeof anyWin.ethereum.request === 'function') {
+  if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && isCallableProvider(anyWin.ethereum)) {
     return anyWin.ethereum;
   }
 
   // SafePal direct provider (SafePal mobile app in-app browser or extension)
-  if (anyWin.safepalProvider && typeof anyWin.safepalProvider.request === 'function') {
+  if (isCallableProvider(anyWin.safepalProvider)) {
     return anyWin.safepalProvider;
   }
 
   // SafePal or multi-provider in window.ethereum.providers
   if (Array.isArray(anyWin.ethereum?.providers)) {
-    const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && typeof p.request === 'function');
+    const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && isCallableProvider(p));
     if (ps) return ps;
-    const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
+    const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && isCallableProvider(p));
     if (sp) return sp;
-    const anyValid = anyWin.ethereum.providers.find((p: any) => typeof p.request === 'function');
+    const anyValid = anyWin.ethereum.providers.find((p: any) => isCallableProvider(p));
     if (anyValid) return anyValid;
   }
 
-  // window.ethereum with valid request method
-  if (anyWin.ethereum && typeof anyWin.ethereum.request === 'function') {
+  // window.ethereum with valid request / enable / send method
+  if (isCallableProvider(anyWin.ethereum)) {
     return anyWin.ethereum;
   }
 
-  // window.safePal with valid request method
-  if (anyWin.safePal && typeof anyWin.safePal.request === 'function') {
+  // window.safePal with valid method
+  if (isCallableProvider(anyWin.safePal)) {
     return anyWin.safePal;
   }
 
   // EIP-6963 provider
   if (eip6963Providers.size > 0) {
     const first = eip6963Providers.values().next().value;
-    if (first && typeof first.request === 'function') return first;
+    if (isCallableProvider(first)) return first;
   }
 
-  return anyWin.ethereum || null;
+  return isCallableProvider(anyWin.ethereum) ? anyWin.ethereum : null;
 }
 
 export function getBrowserProvider(): BrowserProvider | null {

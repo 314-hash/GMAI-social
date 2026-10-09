@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Lock, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 import { useWallet } from '../contexts/WalletContext';
+import { shortenAddress } from '../utils/formatters';
 
 interface MessageInputProps {
   onOpenAuthModal: () => void;
@@ -17,7 +18,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onShowToast,
 }) => {
   const { sendMessage, isGatedLocked, activeRoomMinBalance, activeRoom } = useChat();
-  const { isConnected, isAuthenticated, balanceInfo } = useWallet();
+  const { isConnected, isAuthenticated, balanceInfo, address, authSession } = useWallet();
 
   const [text, setText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -37,7 +38,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (!text.trim() || isSending || cooldown > 0) return;
 
     if (!isConnected) {
-      onOpenAuthModal();
+      if (onOpenWalletModal) {
+        onOpenWalletModal();
+      } else {
+        onOpenAuthModal();
+      }
       return;
     }
 
@@ -136,6 +141,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   return (
     <div className="p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gmai-dark/95 border-t border-cyan-500/20 backdrop-blur-md shrink-0">
       <form onSubmit={handleSubmit} className="relative flex flex-col gap-2">
+        {/* Connected Handle Status Strip */}
+        <div className="flex items-center justify-between px-1 pb-1 text-[11px] border-b border-slate-800/80">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+            <span className="text-slate-400 text-[10px]">Chatting as</span>
+            <span className="font-bold text-cyan-300 font-mono truncate text-xs">
+              @{authSession?.username || (address ? `Player_${address.slice(2, 6)}` : 'GMAI_User')}
+            </span>
+            {address && (
+              <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+                ({shortenAddress(address, 4)})
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onOpenAuthModal}
+            className="text-[10px] font-semibold text-purple-400 hover:text-purple-300 hover:underline shrink-0"
+          >
+            Change Handle
+          </button>
+        </div>
+
         {/* Quick Emoji Bar & Character Count */}
         <div className="flex items-center justify-between text-[11px]">
           <div className="flex items-center gap-1.5">

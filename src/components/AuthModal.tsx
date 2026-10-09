@@ -34,7 +34,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Sync username when address connects or changes
   useEffect(() => {
-    if (address && !username) {
+    if (address) {
       const existing = getUsernameForAddress(address);
       setUsername(existing || `Player_${address.slice(2, 6)}`);
     }
@@ -43,28 +43,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   const handleConnect = async () => {
-    const hasInjected = typeof window !== 'undefined' && !!(
-      (window as any).ethereum ||
-      (window as any).safepalProvider ||
-      (window as any).safePal ||
-      (window as any).pinetswapProvider ||
-      (window as any).pinetswap ||
-      (window as any).pinet
-    );
-    if (hasInjected) {
-      try {
-        await connectWallet();
-      } catch {
-        if (onOpenWalletModal) {
-          onClose();
-          onOpenWalletModal();
-        }
-      }
-    } else if (onOpenWalletModal) {
+    if (onOpenWalletModal) {
       onClose();
       onOpenWalletModal();
     } else {
-      connectWallet();
+      try {
+        await connectWallet();
+      } catch (err: any) {
+        setError(err.message || 'Connection failed');
+      }
     }
   };
 

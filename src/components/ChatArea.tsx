@@ -6,6 +6,7 @@ import {
   Pin,
   ChevronDown,
   Gamepad2,
+  Plus,
 } from 'lucide-react';
 import { useChat } from '../contexts/ChatContext';
 import { useWallet } from '../contexts/WalletContext';
@@ -18,6 +19,7 @@ interface ChatAreaProps {
   isDetailsOpen: boolean;
   onOpenAuthModal: () => void;
   onOpenWalletModal?: () => void;
+  onOpenCreateModal?: () => void;
   onShowToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -26,10 +28,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isDetailsOpen,
   onOpenAuthModal,
   onOpenWalletModal,
+  onOpenCreateModal,
   onShowToast,
 }) => {
   const {
+    rooms,
     activeRoom,
+    setActiveRoomId,
     messages,
     reactMessage,
     removeMessage,
@@ -134,6 +139,41 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             <Info className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
+      {/* Mobile Quick Channel Switcher (One-touch room navigation for mobile users) */}
+      <div className="lg:hidden px-3 py-2 bg-slate-900/90 border-b border-cyan-500/15 overflow-x-auto no-scrollbar flex items-center gap-1.5 shrink-0">
+        <span className="text-[10px] font-mono uppercase text-slate-500 shrink-0 mr-1">CHANNELS:</span>
+        {rooms.map(room => {
+          const isActive = activeRoom?.id === room.id;
+          return (
+            <button
+              key={room.id}
+              type="button"
+              onClick={() => setActiveRoomId(room.id)}
+              className={`px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
+                isActive
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]'
+                  : 'bg-slate-800/80 text-slate-300 hover:text-white border border-slate-700/60'
+              }`}
+            >
+              <span>#{room.slug}</span>
+              {room.isTokenGated && (
+                <Lock className={`w-2.5 h-2.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
+              )}
+            </button>
+          );
+        })}
+        {onOpenCreateModal && (
+          <button
+            type="button"
+            onClick={onOpenCreateModal}
+            className="px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40 hover:border-purple-300 shrink-0 flex items-center gap-1 ml-1"
+          >
+            <Plus className="w-3 h-3" />
+            <span>Create</span>
+          </button>
+        )}
       </div>
 
       {/* Pinned Messages Bar */}

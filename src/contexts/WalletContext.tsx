@@ -100,12 +100,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const ethereum = getWalletProvider(targetWallet);
     if (!ethereum) {
       setStatus('error');
-      setError(targetWallet === 'safepal'
+      const errMsg = targetWallet === 'safepal'
         ? 'SafePal Wallet not detected. Please open inside the SafePal app or install the extension.'
         : targetWallet === 'pinetswap'
         ? 'PinetSwap Wallet not detected. Please open inside PinetSwap (pinetswap.app) or connect an EVM wallet.'
-        : 'No EVM wallet detected. Please install SafePal, PinetSwap, MetaMask, or OKX wallet.');
-      return;
+        : 'No EVM wallet detected. Please install SafePal, PinetSwap, MetaMask, or OKX wallet.';
+      setError(errMsg);
+      throw new Error(errMsg);
     }
 
     try {
@@ -358,27 +359,59 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ethereum.on?.('chainChanged', handleChainChanged);
 
     // Auto-check if already authorized
-    ethereum.request?.({ method: 'eth_accounts' }).then((accounts: string[]) => {
-      if (accounts && accounts.length > 0) {
-        const activeAddress = accounts[0];
-        setAddress(activeAddress);
-        setStatus('connected');
-        ethereum.request?.({ method: 'eth_chainId' }).then((hex: string) => {
-          setChainId(parseInt(hex, 16));
-        });
-        let session = getStoredSession();
-        if (!session || session.address.toLowerCase() !== activeAddress.toLowerCase()) {
-          session = createQuickWalletSession(activeAddress);
+    if (typeof ethereum.request === 'function') {
+      ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+        if (accounts && accounts.length > 0) {
+          const activeAddress = accounts[0];
+          setActiveProvider(ethereum);
+          setAddress(activeAddress);
+          setStatus('connected');
+          ethereum.request?.({ method: 'eth_chainId' }).then((hex: string) => {
+            setChainId(typeof hex === 'string' ? parseInt(hex, 16) : Number(hex));
+          }).catch(() => {});
+          let session = getStoredSession();
+          if (!session || session.address.toLowerCase() !== activeAddress.toLowerCase()) {
+            session = createQuickWalletSession(activeAddress);
+          }
+          setAuthSession(session);
         }
-        setAuthSession(session);
-      }
-    }).catch(() => {});
+      }).catch(() => {});
+    }
 
     return () => {
       ethereum.removeListener?.('accountsChanged', handleAccountsChanged);
       ethereum.removeListener?.('chainChanged', handleChainChanged);
     };
   }, [disconnectWallet]);
+
+  // Delayed injection listener for mobile webviews (SafePal, PinetSwap, MetaMask)
+  useEffect(() => {
+    const handleLateInjection = () => {
+      const prov = getInjectedProvider();
+      if (prov && typeof prov.request === 'function' && !address) {
+        prov.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+          if (accounts && accounts.length > 0) {
+            const activeAddress = accounts[0];
+            setActiveProvider(prov);
+            setAddress(activeAddress);
+            setStatus('connected');
+            let session = getStoredSession();
+            if (!session || session.address.toLowerCase() !== activeAddress.toLowerCase()) {
+              session = createQuickWalletSession(activeAddress);
+            }
+            setAuthSession(session);
+          }
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('ethereum#initialized', handleLateInjection);
+    const timer = setTimeout(handleLateInjection, 600);
+    return () => {
+      window.removeEventListener('ethereum#initialized', handleLateInjection);
+      clearTimeout(timer);
+    };
+  }, [address]);
 
   const clearError = () => setError(null);
 

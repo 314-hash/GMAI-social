@@ -110,4 +110,17 @@ describe('SafePal & Multi-Wallet Provider Resolution', () => {
     const provider = getWalletProvider('pinetswap');
     expect(provider).toBe(mockInAppEthereum);
   });
+
+  it('falls back to window.ethereum when user selects safepal inside mobile in-app browser', () => {
+    const mockInAppEthereum = {
+      request: async () => {},
+    };
+
+    (globalThis as any).window = {
+      ethereum: mockInAppEthereum,
+    };
+
+    const provider = getWalletProvider('safepal');
+    expect(provider).toBe(mockInAppEthereum);
+  });
 });

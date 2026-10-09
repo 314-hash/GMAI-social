@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (hasEthereum) {
       try {
         await connectWallet();
-        onOpenAuthModal();
+        onShowToast('Wallet connected successfully!', 'success');
       } catch {
         onOpenWalletModal();
       }
