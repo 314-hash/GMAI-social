@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: #070a12;
+    --color-cyan: #00f0ff;
+    --color-magenta: #d946ef;
+    --color-purple: #a855f7;
+    --color-gold: #f59e0b;
+  }
+
+  body {
+    background-color: #070a12;
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+
+  /* Custom Gaming Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(7, 10, 18, 0.8);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.25);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 240, 255, 0.6);
+  }
+}
+
+@layer utilities {
+  .cyber-glass {
+    background: rgba(13, 19, 34, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 240, 255, 0.15);
+  }
+
+  .cyber-glass-glow {
+    background: rgba(13, 19, 34, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.15);
+  }
+
+  .cyber-border-gradient {
+    border-image: linear-gradient(135deg, #00f0ff, #a855f7, #f59e0b) 1;
+  }
+
+  .gaming-text-glow {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.6), 0 0 20px rgba(0, 240, 255, 0.2);
+  }
+
+  .magenta-text-glow {
+    text-shadow: 0 0 10px rgba(217, 70, 239, 0.6), 0 0 20px rgba(217, 70, 239, 0.2);
+  }
+
+  .gold-text-glow {
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.6), 0 0 20px rgba(245, 158, 11, 0.2);
+  }
+
+  .scanline {
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,0),
+      rgba(255,255,255,0) 50%,
+      rgba(0, 240, 255, 0.03) 50%,
+      rgba(0, 240, 255, 0.03)
+    );
+    background-size: 100% 4px;
+  }
+}
