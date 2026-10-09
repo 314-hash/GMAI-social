@@ -17,6 +17,7 @@ interface ChatAreaProps {
   onToggleDetails: () => void;
   isDetailsOpen: boolean;
   onOpenAuthModal: () => void;
+  onOpenWalletModal?: () => void;
   onShowToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -24,6 +25,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onToggleDetails,
   isDetailsOpen,
   onOpenAuthModal,
+  onOpenWalletModal,
   onShowToast,
 }) => {
   const {
@@ -154,7 +156,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 relative"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto overscroll-y-contain px-2 sm:px-4 py-4 space-y-2 relative"
       >
         {/* Welcome Hero inside Room */}
         <div className="p-4 sm:p-6 mb-4 rounded-3xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-cyan-500/20 relative overflow-hidden">
@@ -220,6 +223,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {/* Bottom Message Input */}
       <MessageInput
         onOpenAuthModal={onOpenAuthModal}
+        onOpenWalletModal={onOpenWalletModal}
         onShowToast={onShowToast}
       />
     </main>

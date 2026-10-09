@@ -132,9 +132,23 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const activeAddress = accounts[0];
       setActiveProvider(ethereum);
 
-      const provider = new BrowserProvider(ethereum);
-      const network = await provider.getNetwork();
-      const currentChainId = Number(network.chainId);
+      // NON-BLOCKING chain ID query: Never let network query hang the connection on mobile
+      let currentChainId = SIDRA_CHAIN_CONFIG.chainId;
+      try {
+        const chainPromise = (async () => {
+          if (typeof ethereum.request === 'function') {
+            const hex = await ethereum.request({ method: 'eth_chainId' });
+            return typeof hex === 'string' ? parseInt(hex, 16) : Number(hex);
+          }
+          return SIDRA_CHAIN_CONFIG.chainId;
+        })();
+        const timeoutPromise = new Promise<number>((resolve) =>
+          setTimeout(() => resolve(SIDRA_CHAIN_CONFIG.chainId), 1500)
+        );
+        currentChainId = await Promise.race([chainPromise, timeoutPromise]);
+      } catch {
+        currentChainId = SIDRA_CHAIN_CONFIG.chainId;
+      }
 
       setAddress(activeAddress);
       setChainId(currentChainId);

@@ -22,8 +22,15 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   onClose,
   onShowToast,
 }) => {
-  const { connectWallet } = useWallet();
+  const { connectWallet, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
+
+  // Auto-close modal when connected to prevent getting stuck
+  React.useEffect(() => {
+    if (isOpen && isConnected) {
+      onClose();
+    }
+  }, [isOpen, isConnected, onClose]);
 
   if (!isOpen) return null;
 
@@ -50,15 +57,27 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   const isPinetSwapAvailable = typeof window !== 'undefined' && !!(
     (window as any).pinetswapProvider ||
     (window as any).pinetswap ||
+    (window as any).pinet ||
     (window as any).ethereum?.isPinetSwap ||
-    (window as any).ethereum?.providers?.some((p: any) => p.isPinetSwap || p.isPinetswap)
+    (window as any).ethereum?.isPinetswap ||
+    (window as any).ethereum?.providers?.some((p: any) => p.isPinetSwap || p.isPinetswap || p.isPinet) ||
+    window.location.hostname.includes('pinetswap') ||
+    (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('pinetswap'))
   );
 
   // Determine detected wallet label
   let detectedWalletName = 'Browser Wallet';
   if (typeof window !== 'undefined') {
     const anyWin = window as any;
-    if (anyWin.pinetswapProvider || anyWin.pinetswap || anyWin.ethereum?.isPinetSwap) {
+    if (
+      anyWin.pinetswapProvider ||
+      anyWin.pinetswap ||
+      anyWin.pinet ||
+      anyWin.ethereum?.isPinetSwap ||
+      anyWin.ethereum?.isPinetswap ||
+      window.location.hostname.includes('pinetswap') ||
+      (typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('pinetswap'))
+    ) {
       detectedWalletName = 'PinetSwap Wallet';
     } else if (anyWin.safepalProvider || anyWin.ethereum?.isSafePal || anyWin.ethereum?.providers?.some((p: any) => p.isSafePal)) {
       detectedWalletName = 'SafePal Wallet';
@@ -172,14 +191,14 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   ];
 
   const handleWalletClick = async (e: React.MouseEvent, wallet: typeof mobileWallets[0]) => {
-    // 1. If wallet is directly available/injected in the current browser, connect immediately!
-    if (wallet.isAvailable) {
+    // 1. If wallet is directly available OR if ANY injected provider exists in this browser, connect directly!
+    if (wallet.isAvailable || hasInjected) {
       e.preventDefault();
       await handleConnectInjected(wallet.id);
       return;
     }
 
-    // 2. PinetSwap specific handling
+    // 2. PinetSwap specific handling for external browser without provider
     if (wallet.id === 'pinetswap') {
       e.preventDefault();
       onShowToast('Opening PinetSwap (pinetswap.app) for Sidra Chain...', 'info');
@@ -217,7 +236,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
     window.open(wallet.downloadUrl, '_blank');
   };
 
-  const primaryTarget = isPinetSwapAvailable ? 'pinetswap' : isSafePalAvailable ? 'safepal' : undefined;
+  const primaryTarget = isPinetSwapAvailable ? 'pinetswap' : isSafePalAvailable ? 'safepal' : (hasInjected ? 'pinetswap' : undefined);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">

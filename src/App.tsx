@@ -37,7 +37,7 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-gmai-dark text-slate-100 font-sans">
+    <div className="flex flex-col h-screen h-[100dvh] w-screen overflow-hidden bg-gmai-dark text-slate-100 font-sans">
       {/* Top Application Header */}
       <Header
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
@@ -61,6 +61,7 @@ const MainApp: React.FC = () => {
           onToggleDetails={() => setIsDetailsOpen(!isDetailsOpen)}
           isDetailsOpen={isDetailsOpen}
           onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenWalletModal={() => setIsWalletModalOpen(true)}
           onShowToast={showToast}
         />
 

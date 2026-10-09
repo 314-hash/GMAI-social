@@ -46,11 +46,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const hasInjected = typeof window !== 'undefined' && !!(
       (window as any).ethereum ||
       (window as any).safepalProvider ||
-      (window as any).safePal
+      (window as any).safePal ||
+      (window as any).pinetswapProvider ||
+      (window as any).pinetswap ||
+      (window as any).pinet
     );
     if (hasInjected) {
       try {
         await connectWallet();
+        onClose();
       } catch {
         if (onOpenWalletModal) {
           onClose();

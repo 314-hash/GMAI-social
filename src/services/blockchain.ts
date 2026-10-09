@@ -115,13 +115,14 @@ export function getWalletProvider(targetWallet?: string): any {
     if (anyWin.pinet && typeof anyWin.pinet.request === 'function') {
       return anyWin.pinet;
     }
-    if (anyWin.ethereum?.isPinetSwap && typeof anyWin.ethereum.request === 'function') {
+    if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && typeof anyWin.ethereum.request === 'function') {
       return anyWin.ethereum;
     }
     if (Array.isArray(anyWin.ethereum?.providers)) {
-      const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap) && typeof p.request === 'function');
+      const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && typeof p.request === 'function');
       if (ps) return ps;
     }
+    // If inside PinetSwap app or browser, or user selects PinetSwap with injected provider available
     if (anyWin.ethereum && typeof anyWin.ethereum.request === 'function') {
       return anyWin.ethereum;
     }
@@ -151,7 +152,10 @@ export function getInjectedProvider(): any {
   if (anyWin.pinetswap && typeof anyWin.pinetswap.request === 'function') {
     return anyWin.pinetswap;
   }
-  if (anyWin.ethereum?.isPinetSwap && typeof anyWin.ethereum.request === 'function') {
+  if (anyWin.pinet && typeof anyWin.pinet.request === 'function') {
+    return anyWin.pinet;
+  }
+  if ((anyWin.ethereum?.isPinetSwap || anyWin.ethereum?.isPinetswap) && typeof anyWin.ethereum.request === 'function') {
     return anyWin.ethereum;
   }
 
@@ -162,7 +166,7 @@ export function getInjectedProvider(): any {
 
   // SafePal or multi-provider in window.ethereum.providers
   if (Array.isArray(anyWin.ethereum?.providers)) {
-    const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap) && typeof p.request === 'function');
+    const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap || p.isPinet) && typeof p.request === 'function');
     if (ps) return ps;
     const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
     if (sp) return sp;
@@ -267,54 +271,46 @@ export async function fetchGmaiBalance(
   }
 
   try {
-    // We query using the Sidra RPC directly or browser provider to guarantee reading Sidra network
-    let provider: any = null;
-    const browserProvider = getBrowserProvider();
-
-    if (browserProvider) {
-      try {
-        const net = await browserProvider.getNetwork();
-        if (Number(net.chainId) === SIDRA_CHAIN_CONFIG.chainId) {
-          provider = browserProvider;
-        }
-      } catch {
-        // Fall back to direct RPC
-      }
-    }
-
-    if (!provider) {
-      provider = getSidraRpcProvider();
-    }
-
-    const tokenContract = new Contract(GMAI_TOKEN_CONFIG.address, ERC20_ABI, provider);
-
-    // Read decimals and balance concurrently
-    let decimals = GMAI_TOKEN_CONFIG.defaultDecimals;
-    let balanceRaw: bigint = 0n;
-    let symbol = GMAI_TOKEN_CONFIG.symbol;
-
-    try {
+    // Sidra Chain direct RPC query with timeout protection so mobile never hangs
+    const queryBalanceWithProvider = async (prov: any) => {
+      const tokenContract = new Contract(GMAI_TOKEN_CONFIG.address, ERC20_ABI, prov);
       const [fetchedDecimals, fetchedBalance, fetchedSymbol] = await Promise.all([
         tokenContract.decimals().catch(() => 18),
         tokenContract.balanceOf(walletAddress),
         tokenContract.symbol().catch(() => GMAI_TOKEN_CONFIG.symbol),
       ]);
-      decimals = Number(fetchedDecimals);
-      balanceRaw = BigInt(fetchedBalance.toString());
-      symbol = fetchedSymbol;
-    } catch (readError: any) {
-      console.warn('RPC contract read error, retrying with fallback RPC provider:', readError);
-      // Secondary attempt with dedicated JsonRpcProvider
-      const directRpc = getSidraRpcProvider();
-      const fallbackContract = new Contract(GMAI_TOKEN_CONFIG.address, ERC20_ABI, directRpc);
-      const [fetchedDecimals, fetchedBalance] = await Promise.all([
-        fallbackContract.decimals().catch(() => 18),
-        fallbackContract.balanceOf(walletAddress),
-      ]);
-      decimals = Number(fetchedDecimals);
-      balanceRaw = BigInt(fetchedBalance.toString());
+      return {
+        decimals: Number(fetchedDecimals),
+        balanceRaw: BigInt(fetchedBalance.toString()),
+        symbol: fetchedSymbol,
+      };
+    };
+
+    // Primary: Sidra direct RPC node (fastest & most consistent)
+    const sidraRpc = getSidraRpcProvider();
+    const sidraPromise = queryBalanceWithProvider(sidraRpc);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Sidra RPC read timeout')), 3500)
+    );
+
+    let contractData: { decimals: number; balanceRaw: bigint; symbol: string };
+    try {
+      contractData = await Promise.race([sidraPromise, timeoutPromise]);
+    } catch (primaryErr) {
+      console.warn('Direct Sidra RPC query error/timeout, checking browser provider fallback:', primaryErr);
+      const browserProvider = getBrowserProvider();
+      if (browserProvider) {
+        const browserPromise = queryBalanceWithProvider(browserProvider);
+        const browserTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Browser RPC read timeout')), 2500)
+        );
+        contractData = await Promise.race([browserPromise, browserTimeout]);
+      } else {
+        throw primaryErr;
+      }
     }
 
+    const { decimals, balanceRaw, symbol } = contractData;
     const formatted = formatUnits(balanceRaw, decimals);
     const numericBalance = parseFloat(formatted);
     const isEligibleToCreate = numericBalance >= GMAI_TOKEN_CONFIG.minCreateRoomBalance;
@@ -330,12 +326,20 @@ export async function fetchGmaiBalance(
 
     // Update cache
     balanceCache.set(normalizedAddress, { result, timestamp: Date.now() });
-
     return result;
   } catch (error: any) {
-    console.error('Failed to read GMAI balance from Sidra contract:', error);
-    throw new Error(
-      error?.message || 'Unable to verify GMAI balance on Sidra Chain. Please check your connection.'
-    );
+    console.warn('Unable to verify live GMAI balance on Sidra Chain, returning safe fallback:', error);
+    // Safe non-blocking fallback for mobile: return 0 balance without throwing
+    const fallbackResult: TokenBalanceResult = {
+      raw: 0n,
+      formatted: '0',
+      decimals: GMAI_TOKEN_CONFIG.defaultDecimals,
+      symbol: GMAI_TOKEN_CONFIG.symbol,
+      numericBalance: 0,
+      isEligibleToCreate: false,
+    };
+    // Cache for 8 seconds to avoid rapid retries
+    balanceCache.set(normalizedAddress, { result: fallbackResult, timestamp: Date.now() - CACHE_TTL_MS + 8000 });
+    return fallbackResult;
   }
 }
