@@ -45,7 +45,7 @@ const MainApp: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] w-screen overflow-hidden bg-gmai-dark text-slate-100 font-sans">
+    <div className="flex flex-col h-screen h-[100dvh] w-full max-w-full overflow-hidden bg-gmai-dark text-slate-100 font-sans">
       {/* Top Application Header */}
       <Header
         onOpenAuthModal={() => setIsAuthModalOpen(true)}

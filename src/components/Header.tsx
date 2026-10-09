@@ -170,10 +170,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={handleConnectClick}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all shadow-[0_0_15px_rgba(0,240,255,0.4)] active:scale-95 whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all shadow-[0_0_15px_rgba(0,240,255,0.4)] active:scale-95 whitespace-nowrap"
             >
               <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span>Connect Wallet</span>
+              <span className="hidden xs:inline">Connect Wallet</span>
+              <span className="xs:hidden">Connect</span>
             </button>
           ) : !isAuthenticated ? (
             <button
