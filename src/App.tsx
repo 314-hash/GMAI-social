@@ -8,6 +8,7 @@ import { RoomDetailsPanel } from './components/RoomDetailsPanel';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { AuthModal } from './components/AuthModal';
 import { DiscoverRoomsModal } from './components/DiscoverRoomsModal';
+import { WalletConnectModal } from './components/WalletConnectModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -19,6 +20,7 @@ const MainApp: React.FC = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDiscoverModalOpen, setIsDiscoverModalOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -39,6 +41,7 @@ const MainApp: React.FC = () => {
       {/* Top Application Header */}
       <Header
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenWalletModal={() => setIsWalletModalOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onShowToast={showToast}
       />
@@ -70,6 +73,12 @@ const MainApp: React.FC = () => {
       </div>
 
       {/* Modals & Dialogs */}
+      <WalletConnectModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        onShowToast={showToast}
+      />
+
       <CreateRoomModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -79,6 +88,7 @@ const MainApp: React.FC = () => {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+        onOpenWalletModal={() => setIsWalletModalOpen(true)}
         onShowToast={showToast}
       />
 

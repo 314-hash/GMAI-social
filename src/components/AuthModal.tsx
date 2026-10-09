@@ -8,12 +8,14 @@ import { shortenAddress } from '../utils/formatters';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenWalletModal?: () => void;
   onShowToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
+  onOpenWalletModal,
   onShowToast,
 }) => {
   const { address, isConnected, connectWallet, authenticate } = useWallet();
@@ -30,6 +32,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const handleConnect = async () => {
+    const hasInjected = typeof window !== 'undefined' && !!(window as any).ethereum;
+    if (hasInjected) {
+      try {
+        await connectWallet();
+      } catch {
+        if (onOpenWalletModal) {
+          onClose();
+          onOpenWalletModal();
+        }
+      }
+    } else if (onOpenWalletModal) {
+      onClose();
+      onOpenWalletModal();
+    } else {
+      connectWallet();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
           >
@@ -104,11 +126,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Connect EVM Wallet
                 </h3>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
-                  Connect your MetaMask, OKX, Rabby, or EVM wallet to prove ownership and participate in GameMind AI community chat.
+                  Connect your MetaMask, OKX, Rabby, or Mobile Web3 wallet to prove ownership and participate in GameMind AI community chat.
                 </p>
               </div>
               <button
-                onClick={connectWallet}
+                type="button"
+                onClick={handleConnect}
                 className="w-full py-2.5 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] text-sm"
               >
                 Connect Wallet Now
