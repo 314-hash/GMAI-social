@@ -18,7 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenWalletModal,
   onShowToast,
 }) => {
-  const { address, isConnected, connectWallet, authenticate } = useWallet();
+  const { address, isConnected, connectWallet, authenticate, registerChatUsername } = useWallet();
 
   const [username, setUsername] = useState(() => {
     if (address) {
@@ -54,7 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (hasInjected) {
       try {
         await connectWallet();
-        onClose();
       } catch {
         if (onOpenWalletModal) {
           onClose();
@@ -69,33 +68,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleQuickEnter = () => {
-    if (!address) {
-      setError('Please connect your EVM wallet first.');
-      return;
-    }
-    try {
-      const trimmed = username.trim() || `Player_${address.slice(2, 6)}`;
-      const validation = validateUsername(trimmed);
-      if (!validation.valid) {
-        setError(validation.error || 'Invalid username');
-        return;
-      }
-      if (!isUsernameAvailable(trimmed, address)) {
-        setError(`Username "${trimmed}" is already claimed by another wallet address.`);
-        return;
-      }
-
-      const session = createQuickWalletSession(address, trimmed);
-      onShowToast(`Joined as @${session.username}! Welcome to GameMind AI.`, 'success');
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Quick enter failed.');
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Instant mobile username registration & chat entry
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
 
     if (!isConnected || !address) {
@@ -103,14 +78,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const trimmed = username.trim();
+    const trimmed = username.trim() || `Player_${address.slice(2, 6)}`;
     const validation = validateUsername(trimmed);
     if (!validation.valid) {
       setError(validation.error || 'Invalid username');
       return;
     }
 
-    // Check availability
+    if (!isUsernameAvailable(trimmed, address)) {
+      setError(`Username "${trimmed}" is already claimed by another wallet address.`);
+      return;
+    }
+
+    try {
+      const session = registerChatUsername(trimmed);
+      onShowToast(`Joined as @${session.username}! Welcome to GameMind AI.`, 'success');
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Username registration failed.');
+    }
+  };
+
+  // Optional cryptographic EIP-191 sign
+  const handleCryptographicAuth = async () => {
+    if (!isConnected || !address) {
+      setError('Please connect your EVM wallet first.');
+      return;
+    }
+
+    const trimmed = username.trim() || `Player_${address.slice(2, 6)}`;
+    const validation = validateUsername(trimmed);
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid username');
+      return;
+    }
+
     if (!isUsernameAvailable(trimmed, address)) {
       setError(`Username "${trimmed}" is already claimed by another wallet address.`);
       return;
@@ -118,19 +120,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       setIsSigning(true);
-      await authenticate(trimmed);
-      onShowToast(`Authenticated as @${trimmed}! Welcome to GameMind AI.`, 'success');
+      const session = await authenticate(trimmed);
+      onShowToast(`Cryptographically verified as @${session.username}!`, 'success');
       onClose();
     } catch (err: any) {
-      console.warn('Authentication signature skipped/failed, falling back to quick session:', err);
-      // Fail-safe for mobile: auto-establish verified connected wallet session so user is never stuck
-      try {
-        const session = createQuickWalletSession(address, trimmed);
-        onShowToast(`Joined as @${session.username}! Welcome to GameMind AI.`, 'success');
-        onClose();
-      } catch (fbErr: any) {
-        setError(fbErr?.message || 'Authentication failed.');
-      }
+      console.warn('Signature rejected or timed out, registering username directly:', err);
+      const session = registerChatUsername(trimmed);
+      onShowToast(`Joined as @${session.username}! Welcome to GameMind AI.`, 'success');
+      onClose();
     } finally {
       setIsSigning(false);
     }
@@ -219,7 +216,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {/* Username Input */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Select Chat Username <span className="text-red-400">*</span>
+                  Choose Chat Handle <span className="text-red-400">*</span>
                 </label>
                 <div className="flex items-center rounded-xl bg-slate-900/90 border border-slate-800 focus-within:border-cyan-500 px-3 py-2">
                   <span className="text-xs text-slate-500 font-mono">@</span>
@@ -231,49 +228,66 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={e => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
                     placeholder="Player_4802"
                     className="w-full bg-transparent pl-1 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+                    autoFocus
                   />
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  3-20 characters. Alphanumeric and underscores only. Uniquely bound to your wallet.
-                </p>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                  <span>3-20 chars (letters, numbers, _)</span>
+                  <span>{username.length}/20</span>
+                </div>
+
+                {/* Quick Suggestion Chips */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  <span className="text-[10px] text-slate-500 font-mono">Suggestions:</span>
+                  {['GMAI_Master', 'SidraNinja', 'CyberPinet', 'MindHunter'].map(sug => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setUsername(sug)}
+                      className="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-cyan-500/20 text-[10px] text-slate-300 hover:text-cyan-300 border border-slate-700/60 transition-colors font-mono"
+                    >
+                      @{sug}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="space-y-2 pt-1">
-                {/* Primary: Sign & Claim */}
+              <div className="space-y-2 pt-2">
+                {/* Primary: Instant Save Username & Enter Chat */}
                 <button
                   type="submit"
+                  disabled={!username.trim()}
+                  className="w-full py-3 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 transition-all shadow-[0_0_20px_rgba(0,240,255,0.4)] text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Save Username & Enter Chat</span>
+                </button>
+
+                {/* Optional: EIP-191 Cryptographic Signature */}
+                <button
+                  type="button"
+                  onClick={handleCryptographicAuth}
                   disabled={isSigning || !username.trim()}
-                  className="w-full py-2.5 rounded-xl font-bold text-slate-950 bg-gradient-to-r from-purple-400 via-pink-400 to-amber-300 hover:from-purple-300 hover:to-amber-200 transition-all shadow-[0_0_20px_rgba(217,70,239,0.35)] text-xs sm:text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-2 rounded-xl font-medium text-slate-400 hover:text-purple-300 bg-slate-900/60 hover:bg-purple-500/10 border border-slate-800 hover:border-purple-500/30 transition-all text-[11px] flex items-center justify-center gap-1.5"
                 >
                   {isSigning ? (
                     <>
-                      <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                      <span className="w-3.5 h-3.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
                       <span>Awaiting Wallet Signature...</span>
                     </>
                   ) : (
                     <>
-                      <KeyRound className="w-4 h-4" />
-                      <span>Sign & Verify Identity</span>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Optional: Cryptographic EIP-191 Sign</span>
                     </>
                   )}
-                </button>
-
-                {/* Instant Mobile Quick Enter */}
-                <button
-                  type="button"
-                  onClick={handleQuickEnter}
-                  disabled={isSigning}
-                  className="w-full py-2 rounded-xl font-semibold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all text-xs flex items-center justify-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Instant Enter as @{username.trim() || 'User'} (Skip Signature)</span>
                 </button>
               </div>
 
               {/* Explanation Note */}
               <p className="text-[10px] text-slate-500 text-center">
-                Zero gas required. Safe for all mobile EVM wallets. Private keys are never requested.
+                Zero gas required. Safe for PinetSwap & all mobile EVM wallets. Private keys are never requested.
               </p>
             </form>
           )}

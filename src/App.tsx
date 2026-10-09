@@ -12,8 +12,11 @@ import { WalletConnectModal } from './components/WalletConnectModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+import { getUsernameForAddress } from './services/auth';
+
 const MainApp: React.FC = () => {
   const { setActiveRoomId } = useChat();
+  const { address } = useWallet();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -34,6 +37,19 @@ const MainApp: React.FC = () => {
 
   const dismissToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleWalletConnected = () => {
+    setIsWalletModalOpen(false);
+    if (address) {
+      const existing = getUsernameForAddress(address);
+      if (existing) {
+        showToast(`Welcome back @${existing}!`, 'success');
+        return;
+      }
+    }
+    // Seamlessly prompt username setup so mobile user can create handle & start chatting
+    setIsAuthModalOpen(true);
   };
 
   return (
@@ -77,6 +93,7 @@ const MainApp: React.FC = () => {
       <WalletConnectModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
+        onConnected={handleWalletConnected}
         onShowToast={showToast}
       />
 

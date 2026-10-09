@@ -33,6 +33,7 @@ interface WalletContextType {
   disconnectWallet: () => void;
   switchNetwork: () => Promise<boolean>;
   authenticate: (username: string) => Promise<AuthSession>;
+  registerChatUsername: (username: string) => AuthSession;
   refreshBalance: (force?: boolean) => Promise<void>;
   clearError: () => void;
 }
@@ -306,6 +307,22 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return session;
   }, [address]);
 
+  // Fast mobile username registration (instant verified session, zero gas, no hanging)
+  const registerChatUsername = useCallback((username: string): AuthSession => {
+    if (!address) {
+      throw new Error('Wallet must be connected first.');
+    }
+    const session = createQuickWalletSession(address, username);
+    setAuthSession(session);
+    broadcastPresence({
+      address,
+      username: session.username,
+      status: 'online',
+      lastSeen: Date.now(),
+    });
+    return session;
+  }, [address]);
+
   // Auto-refresh balance on address change
   useEffect(() => {
     if (address) {
@@ -381,6 +398,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         disconnectWallet,
         switchNetwork,
         authenticate,
+        registerChatUsername,
         refreshBalance,
         clearError,
       }}

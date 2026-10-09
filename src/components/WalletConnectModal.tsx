@@ -14,23 +14,28 @@ import { getInjectedProvider } from '../services/blockchain';
 interface WalletConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onConnected?: () => void;
   onShowToast: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   isOpen,
   onClose,
+  onConnected,
   onShowToast,
 }) => {
   const { connectWallet, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
 
-  // Auto-close modal when connected to prevent getting stuck
+  // Auto-close modal when connected and proceed to username setup
   React.useEffect(() => {
     if (isOpen && isConnected) {
       onClose();
+      if (onConnected) {
+        onConnected();
+      }
     }
-  }, [isOpen, isConnected, onClose]);
+  }, [isOpen, isConnected, onClose, onConnected]);
 
   if (!isOpen) return null;
 
@@ -110,6 +115,9 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       await connectWallet(targetWallet);
       onClose();
       onShowToast(`Connected successfully!`, 'success');
+      if (onConnected) {
+        onConnected();
+      }
     } catch (err: any) {
       onShowToast(err.message || 'Connection failed', 'error');
     }
@@ -201,8 +209,15 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
     // 2. PinetSwap specific handling for external browser without provider
     if (wallet.id === 'pinetswap') {
       e.preventDefault();
-      onShowToast('Opening PinetSwap (pinetswap.app) for Sidra Chain...', 'info');
-      window.open(wallet.downloadUrl, '_blank');
+      try {
+        await navigator.clipboard.writeText(currentUrl);
+        onShowToast('DApp URL copied! Opening PinetSwap — paste URL into PinetSwap DApp Explorer to connect.', 'success');
+      } catch {
+        onShowToast('Opening PinetSwap (pinetswap.app) for Sidra Chain...', 'info');
+      }
+      setTimeout(() => {
+        window.open('https://pinetswap.app', '_blank');
+      }, 500);
       return;
     }
 
