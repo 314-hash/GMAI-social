@@ -101,7 +101,9 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setStatus('error');
       setError(targetWallet === 'safepal'
         ? 'SafePal Wallet not detected. Please open inside the SafePal app or install the extension.'
-        : 'No EVM wallet detected. Please install SafePal, MetaMask, or OKX wallet.');
+        : targetWallet === 'pinetswap'
+        ? 'PinetSwap Wallet not detected. Please open inside PinetSwap (pinetswap.app) or connect an EVM wallet.'
+        : 'No EVM wallet detected. Please install SafePal, PinetSwap, MetaMask, or OKX wallet.');
       return;
     }
 

@@ -91,12 +91,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </div>
           </div>
           <a
-            href="https://node.sidrachain.com"
+            href="https://pinetswap.app"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-colors flex items-center gap-1"
           >
-            Acquire $GMAI
+            <span>Swap on PinetSwap</span>
           </a>
         </div>
       </div>

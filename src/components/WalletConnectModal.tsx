@@ -46,11 +46,21 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
     (window as any).ethereum?.providers?.some((p: any) => p.isSafePal)
   );
 
+  // Check if PinetSwap is specifically available
+  const isPinetSwapAvailable = typeof window !== 'undefined' && !!(
+    (window as any).pinetswapProvider ||
+    (window as any).pinetswap ||
+    (window as any).ethereum?.isPinetSwap ||
+    (window as any).ethereum?.providers?.some((p: any) => p.isPinetSwap || p.isPinetswap)
+  );
+
   // Determine detected wallet label
   let detectedWalletName = 'Browser Wallet';
   if (typeof window !== 'undefined') {
     const anyWin = window as any;
-    if (anyWin.safepalProvider || anyWin.ethereum?.isSafePal || anyWin.ethereum?.providers?.some((p: any) => p.isSafePal)) {
+    if (anyWin.pinetswapProvider || anyWin.pinetswap || anyWin.ethereum?.isPinetSwap) {
+      detectedWalletName = 'PinetSwap Wallet';
+    } else if (anyWin.safepalProvider || anyWin.ethereum?.isSafePal || anyWin.ethereum?.providers?.some((p: any) => p.isSafePal)) {
       detectedWalletName = 'SafePal Wallet';
     } else if (anyWin.ethereum?.isMetaMask && !anyWin.ethereum?.isOkxWallet) {
       detectedWalletName = 'MetaMask';
@@ -87,6 +97,18 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   };
 
   const mobileWallets = [
+    {
+      id: 'pinetswap',
+      name: 'PinetSwap',
+      badge: isPinetSwapAvailable ? 'Ready' : 'Sidra Native',
+      color: 'from-emerald-600/20 to-teal-600/20 border-emerald-500/30 text-emerald-300',
+      icon: '🌲',
+      deepLink: `https://pinetswap.app`,
+      fallbackUniversalLink: `https://pinetswap.app`,
+      downloadUrl: 'https://pinetswap.app',
+      description: 'Sidra Chain DEX & Non-Custodial Wallet',
+      isAvailable: isPinetSwapAvailable,
+    },
     {
       id: 'safepal',
       name: 'SafePal Wallet',
@@ -157,7 +179,15 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       return;
     }
 
-    // 2. SafePal specific handling
+    // 2. PinetSwap specific handling
+    if (wallet.id === 'pinetswap') {
+      e.preventDefault();
+      onShowToast('Opening PinetSwap (pinetswap.app) for Sidra Chain...', 'info');
+      window.open(wallet.downloadUrl, '_blank');
+      return;
+    }
+
+    // 3. SafePal specific handling
     if (wallet.id === 'safepal') {
       if (isMobile) {
         e.preventDefault();
@@ -176,16 +206,18 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       return;
     }
 
-    // 3. If mobile external browser, let deep-link trigger
+    // 4. If mobile external browser, let deep-link trigger
     if (isMobile) {
       return;
     }
 
-    // 4. Desktop without extension installed: open download page
+    // 5. Desktop without extension installed: open download page
     e.preventDefault();
     onShowToast(`Opening ${wallet.name} download page...`, 'info');
     window.open(wallet.downloadUrl, '_blank');
   };
+
+  const primaryTarget = isPinetSwapAvailable ? 'pinetswap' : isSafePalAvailable ? 'safepal' : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
@@ -220,12 +252,12 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           {hasInjected ? (
             <button
               type="button"
-              onClick={() => handleConnectInjected(isSafePalAvailable ? 'safepal' : undefined)}
+              onClick={() => handleConnectInjected(primaryTarget)}
               className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-blue-500/10 to-purple-500/20 border border-cyan-400/50 hover:border-cyan-300 hover:shadow-[0_0_20px_rgba(0,240,255,0.25)] transition-all group text-left"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-lg shadow-inner">
-                  {detectedWalletName === 'SafePal Wallet' ? '🛡️' : '⚡'}
+                  {detectedWalletName === 'PinetSwap Wallet' ? '🌲' : detectedWalletName === 'SafePal Wallet' ? '🛡️' : '⚡'}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -253,7 +285,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
                   {isMobile ? 'Mobile Browser Detected' : 'Select Your Web3 Wallet'}
                 </span>
                 <p className="text-[11px] text-slate-300 mt-0.5">
-                  Choose SafePal or your favorite wallet below to connect or launch inside the wallet app.
+                  Choose PinetSwap, SafePal, or your favorite wallet below to connect or launch inside the wallet app.
                 </p>
               </div>
             </div>
@@ -322,7 +354,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
               </button>
             </div>
             <p className="text-[10px] text-slate-500">
-              Paste this URL inside SafePal, MetaMask, or OKX in-app DApp browser tab to chat and create rooms.
+              Paste this URL inside PinetSwap, SafePal, or MetaMask in-app DApp browser tab to chat and create rooms.
             </p>
           </div>
 

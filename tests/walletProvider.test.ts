@@ -51,4 +51,36 @@ describe('SafePal & Multi-Wallet Provider Resolution', () => {
     const provider = getInjectedProvider();
     expect(provider).toBe(validEthereum);
   });
+
+  it('detects window.pinetswapProvider directly for PinetSwap wallet', () => {
+    const mockPinetSwap = {
+      isPinetSwap: true,
+      request: async ({ method }: any) => {
+        if (method === 'eth_accounts') return ['0xPinetSwapUser456'];
+        return null;
+      },
+    };
+
+    (globalThis as any).window = {
+      pinetswapProvider: mockPinetSwap,
+    };
+
+    const provider = getWalletProvider('pinetswap');
+    expect(provider).toBe(mockPinetSwap);
+    expect(getInjectedProvider()).toBe(mockPinetSwap);
+  });
+
+  it('detects PinetSwap inside window.ethereum with isPinetSwap flag', () => {
+    const mockPinetEthereum = {
+      isPinetSwap: true,
+      request: async () => {},
+    };
+
+    (globalThis as any).window = {
+      ethereum: mockPinetEthereum,
+    };
+
+    const provider = getWalletProvider('pinetswap');
+    expect(provider).toBe(mockPinetEthereum);
+  });
 });

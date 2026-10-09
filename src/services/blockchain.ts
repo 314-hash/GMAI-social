@@ -102,12 +102,37 @@ export function getWalletProvider(targetWallet?: string): any {
     if (anyWin.ethereum?.isOkxWallet) return anyWin.ethereum;
   }
 
+  // 4. PinetSwap specific check (Sidra Chain Native DEX & Wallet)
+  if (targetWallet === 'pinetswap') {
+    if (eip6963Providers.get('pinetswap')) return eip6963Providers.get('pinetswap');
+    if (eip6963Providers.get('app.pinetswap')) return eip6963Providers.get('app.pinetswap');
+    if (anyWin.pinetswapProvider && typeof anyWin.pinetswapProvider.request === 'function') {
+      return anyWin.pinetswapProvider;
+    }
+    if (anyWin.pinetswap && typeof anyWin.pinetswap.request === 'function') {
+      return anyWin.pinetswap;
+    }
+    if (anyWin.pinet && typeof anyWin.pinet.request === 'function') {
+      return anyWin.pinet;
+    }
+    if (anyWin.ethereum?.isPinetSwap && typeof anyWin.ethereum.request === 'function') {
+      return anyWin.ethereum;
+    }
+    if (Array.isArray(anyWin.ethereum?.providers)) {
+      const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap) && typeof p.request === 'function');
+      if (ps) return ps;
+    }
+    if (anyWin.ethereum && typeof anyWin.ethereum.request === 'function') {
+      return anyWin.ethereum;
+    }
+  }
+
   // Fallback to active or general injected
   return activeProvider || getInjectedProvider();
 }
 
 /**
- * Detect injected EVM provider (SafePal, MetaMask, OKX, Rabby, Trust, etc.)
+ * Detect injected EVM provider (SafePal, PinetSwap, MetaMask, OKX, Rabby, Trust, etc.)
  * Strictly validates that provider has an executable request method.
  */
 export function getInjectedProvider(): any {
@@ -119,6 +144,17 @@ export function getInjectedProvider(): any {
     return activeProvider;
   }
 
+  // PinetSwap direct provider (Sidra Chain native)
+  if (anyWin.pinetswapProvider && typeof anyWin.pinetswapProvider.request === 'function') {
+    return anyWin.pinetswapProvider;
+  }
+  if (anyWin.pinetswap && typeof anyWin.pinetswap.request === 'function') {
+    return anyWin.pinetswap;
+  }
+  if (anyWin.ethereum?.isPinetSwap && typeof anyWin.ethereum.request === 'function') {
+    return anyWin.ethereum;
+  }
+
   // SafePal direct provider (SafePal mobile app in-app browser or extension)
   if (anyWin.safepalProvider && typeof anyWin.safepalProvider.request === 'function') {
     return anyWin.safepalProvider;
@@ -126,6 +162,8 @@ export function getInjectedProvider(): any {
 
   // SafePal or multi-provider in window.ethereum.providers
   if (Array.isArray(anyWin.ethereum?.providers)) {
+    const ps = anyWin.ethereum.providers.find((p: any) => (p.isPinetSwap || p.isPinetswap) && typeof p.request === 'function');
+    if (ps) return ps;
     const sp = anyWin.ethereum.providers.find((p: any) => p.isSafePal && typeof p.request === 'function');
     if (sp) return sp;
     const anyValid = anyWin.ethereum.providers.find((p: any) => typeof p.request === 'function');
